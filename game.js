@@ -17,7 +17,7 @@ const platformWidth = 60;
 const platformHeight = 10;
 const platformCount = 7;
 
-let maxHeight = player.y; // Для подсчёта очков
+let maxHeight = player.y;
 
 function initPlatforms() {
   for (let i = 0; i < platformCount; i++) {
@@ -56,9 +56,13 @@ function updatePlayer() {
   if (player.x < 0) player.x = 0;
   if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-  // Обновляем maxHeight для очков
   if (player.y < maxHeight) {
     maxHeight = player.y;
+  }
+
+  // Если игрок упал ниже экрана — игра окончена, перезапускаем
+  if (player.y > canvas.height) {
+    resetGame();
   }
 }
 
@@ -72,8 +76,6 @@ function checkPlatformCollision() {
       player.velocityY > 0
     ) {
       player.velocityY = player.jumpStrength;
-
-      // При прыжке можно слегка "застопорить" горизонтальную скорость
       player.velocityX = 0;
     }
   });
@@ -92,28 +94,55 @@ function scrollWorld() {
       }
     });
 
-    // Также при прокрутке увеличиваем maxHeight (чтобы очки корректно росли)
     maxHeight += diff;
   }
 }
 
+const keys = {
+  left: false,
+  right: false,
+};
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') {
-    player.velocityX = -5;
-  } else if (e.key === 'ArrowRight') {
-    player.velocityX = 5;
+  if (e.key === 'ArrowLeft' || e.key === 'a') {
+    keys.left = true;
+  } else if (e.key === 'ArrowRight' || e.key === 'd') {
+    keys.right = true;
   }
 });
 
 document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-    player.velocityX = 0;
+  if (e.key === 'ArrowLeft' || e.key === 'a') {
+    keys.left = false;
+  } else if (e.key === 'ArrowRight' || e.key === 'd') {
+    keys.right = false;
   }
 });
+
+function handleInput() {
+  if (keys.left) {
+    player.velocityX = -5;
+  } else if (keys.right) {
+    player.velocityX = 5;
+  } else {
+    player.velocityX = 0;
+  }
+}
+
+function resetGame() {
+  player.x = 185;
+  player.y = 500;
+  player.velocityX = 0;
+  player.velocityY = 0;
+  maxHeight = player.y;
+  platforms.length = 0;
+  initPlatforms();
+}
 
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  handleInput();
   updatePlayer();
   checkPlatformCollision();
   scrollWorld();
