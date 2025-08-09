@@ -31,7 +31,7 @@ function randomRange(min, max) {
 // Ставим стартовую платформу под игроком, чтобы не падал в пустоту
 function initPlatforms() {
   platforms.length = 0;
-
+  // Стартовая платформа под игроком
   platforms.push({
     x: player.x,
     y: player.y + player.height,
@@ -39,13 +39,25 @@ function initPlatforms() {
     height: platformHeight,
     index: 0,
   });
-
   let lastY = player.y + player.height;
   let lastX = player.x;
 
   for (let i = 1; i < platformCount; i++) {
-    let newY = lastY - randomRange(jumpHeight * 0.8, jumpHeight);
-    let newX = Math.random() * (canvas.width - platformWidth);
+    // Максимальная высота прыжка (примерно)
+    const maxJumpHeight = Math.abs(player.jumpStrength) * 25;
+
+    // Новая Y позиция платформы чуть выше предыдущей, не дальше чем maxJumpHeight
+    let newY = lastY - randomRange(maxJumpHeight * 0.7, maxJumpHeight);
+
+    // Новая X позиция — в пределах прыжка по горизонтали, чтобы можно было допрыгнуть
+    // Например, max horizontal jump distance
+    const maxHorizontalJump = 150;
+
+    // Ограничиваем X так, чтобы платформа была не слишком далеко
+    let minX = Math.max(0, lastX - maxHorizontalJump);
+    let maxX = Math.min(screenWidth - platformWidth, lastX + maxHorizontalJump);
+
+    let newX = randomRange(minX, maxX);
 
     platforms.push({
       x: newX,
@@ -59,6 +71,7 @@ function initPlatforms() {
     lastX = newX;
   }
 }
+
 
 function drawPlayer() {
   ctx.fillStyle = 'green';
@@ -126,17 +139,27 @@ function checkPlatformCollision() {
 }
 
 function scrollWorld() {
-  if (player.y < canvas.height / 3) {
-    const diff = (canvas.height / 3) - player.y;
-    player.y = canvas.height / 3;
+  if (player.y < screenHeight / 3) {
+    const diff = (screenHeight / 3) - player.y;
+    player.y = screenHeight / 3;
 
     platforms.forEach(p => {
       p.y += diff;
 
-      if (p.y > canvas.height) {
-        const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
-        let newY = highestPlatformY - randomRange(jumpHeight * 0.8, jumpHeight);
-        let newX = Math.random() * (canvas.width - platformWidth);
+      if (p.y > screenHeight) {
+        // Находим самую верхнюю платформу
+        const highestPlatform = platforms.reduce((prev, curr) => (curr.y < prev.y ? curr : prev));
+
+        // Генерируем новую платформу на расстоянии прыжка выше верхней платформы
+        const maxJumpHeight = Math.abs(player.jumpStrength) * 25;
+        const maxHorizontalJump = 150;
+
+        let newY = highestPlatform.y - randomRange(maxJumpHeight * 0.7, maxJumpHeight);
+
+        let minX = Math.max(0, highestPlatform.x - maxHorizontalJump);
+        let maxX = Math.min(screenWidth - platformWidth, highestPlatform.x + maxHorizontalJump);
+
+        let newX = randomRange(minX, maxX);
 
         p.y = newY;
         p.x = newX;
@@ -148,6 +171,7 @@ function scrollWorld() {
     maxHeight += diff;
   }
 }
+
 
 const keys = {
   left: false,
@@ -208,3 +232,4 @@ function gameLoop() {
 
 initPlatforms();
 gameLoop();
+
