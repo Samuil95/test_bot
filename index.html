@@ -1,1 +1,29 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Doodle Jump - Telegram Edition</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="scoreDisplay">Score: 0</div>
+        
+        <div id="controls">
+            <div class="control-btn" id="leftBtn">←</div>
+            <div class="control-btn" id="rightBtn">→</div>
+        </div>
+        
+        <div id="gameOver">
+            <h1>Game Over!</h1>
+            <h2>Score: <span id="finalScore">0</span></h2>
+            <button id="restartBtn">PLAY AGAIN</button>
+            <a href="#" class="telegram-btn" id="shareBtn">SHARE SCORE</a>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
