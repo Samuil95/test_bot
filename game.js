@@ -10,6 +10,7 @@ const player = {
   velocityX: 0,
   gravity: 0.4,
   jumpStrength: -10,
+  onPlatform: false,
 };
 
 const platforms = [];
@@ -20,6 +21,7 @@ const platformCount = 7;
 let maxHeight = player.y;
 
 function initPlatforms() {
+  platforms.length = 0;
   for (let i = 0; i < platformCount; i++) {
     platforms.push({
       x: Math.random() * (canvas.width - platformWidth),
@@ -60,23 +62,23 @@ function updatePlayer() {
     maxHeight = player.y;
   }
 
-  // Если игрок упал ниже экрана — игра окончена, перезапускаем
   if (player.y > canvas.height) {
     resetGame();
   }
 }
 
 function checkPlatformCollision() {
+  player.onPlatform = false;  // Сбрасываем флаг прыжка
   platforms.forEach(p => {
     if (
-      player.y + player.height <= p.y &&
+      player.velocityY > 0 && // Только при падении вниз
+      player.y + player.height <= p.y + player.velocityY &&
       player.y + player.height + player.velocityY >= p.y &&
       player.x + player.width > p.x &&
-      player.x < p.x + p.width &&
-      player.velocityY > 0
+      player.x < p.x + p.width
     ) {
       player.velocityY = player.jumpStrength;
-      player.velocityX = 0;
+      player.onPlatform = true;
     }
   });
 }
@@ -135,7 +137,6 @@ function resetGame() {
   player.velocityX = 0;
   player.velocityY = 0;
   maxHeight = player.y;
-  platforms.length = 0;
   initPlatforms();
 }
 
