@@ -9,8 +9,7 @@ const player = {
   velocityY: 0,
   velocityX: 0,
   gravity: 0.4,
-  jumpStrength: -10,
-  onPlatform: false,
+  jumpStrength: -12,  // чуть сильнее прыжок
 };
 
 const platforms = [];
@@ -51,55 +50,62 @@ function drawScore() {
 }
 
 function updatePlayer() {
+  // Добавляем гравитацию
   player.velocityY += player.gravity;
   player.y += player.velocityY;
 
+  // Горизонтальное движение с ограничениями по краям
   player.x += player.velocityX;
   if (player.x < 0) player.x = 0;
   if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
+  // Обновляем максимальную высоту (для очков)
   if (player.y < maxHeight) {
     maxHeight = player.y;
   }
 
+  // Если упал вниз - сброс игры
   if (player.y > canvas.height) {
     resetGame();
   }
 }
 
 function checkPlatformCollision() {
-  player.onPlatform = false;  // Сбрасываем флаг прыжка
   platforms.forEach(p => {
+    // Проверяем, касается ли игрок платформы при падении вниз (velocityY > 0)
     if (
-      player.velocityY > 0 && // Только при падении вниз
-      player.y + player.height <= p.y + player.velocityY &&
+      player.velocityY > 0 && 
+      player.y + player.height <= p.y &&
       player.y + player.height + player.velocityY >= p.y &&
       player.x + player.width > p.x &&
       player.x < p.x + p.width
     ) {
-      player.velocityY = player.jumpStrength;
-      player.onPlatform = true;
+      player.velocityY = player.jumpStrength;  // Прыжок вверх
     }
   });
 }
 
 function scrollWorld() {
+  // Если игрок поднялся выше 1/3 высоты канваса, то "поднимаем" платформы вниз, создавая эффект движения вверх
   if (player.y < canvas.height / 3) {
     const diff = (canvas.height / 3) - player.y;
     player.y = canvas.height / 3;
 
     platforms.forEach(p => {
       p.y += diff;
+
+      // Если платформа ушла вниз за экран — переносим её наверх
       if (p.y > canvas.height) {
         p.y = 0;
         p.x = Math.random() * (canvas.width - platformWidth);
       }
     });
 
-    maxHeight += diff;
+    maxHeight += diff; // увеличиваем очки
   }
 }
 
+// Управление
 const keys = {
   left: false,
   right: false,
