@@ -1,4 +1,25 @@
-body {
-  margin: 0;
-  background: #87ceeb;
-}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Doodle Jump</title>
+  <style>
+    body, html {
+      margin: 0; padding: 0; overflow: hidden;
+      background: #87ceeb;
+      display: flex; justify-content: center; align-items: center; height: 100vh;
+      user-select: none;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <script src="game.js"></script>
+</body>
+</html>
