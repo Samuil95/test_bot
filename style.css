@@ -1,15 +1,185 @@
-body {
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: #cceeff;
-  user-select: none;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
-canvas {
-  background: #aaddff;
-  border: 2px solid #333;
-  display: block;
+body {
+    overflow: hidden;
+    background: #6495ED;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#controls {
+    position: absolute;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 15%;
+    opacity: 0.8;
+    z-index: 20;
+}
+
+.control-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(50, 50, 50, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s;
+    backdrop-filter: blur(2px);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+    background: rgba(30, 30, 30, 0.8);
+}
+
+#scoreDisplay {
+    position: absolute;
+    top: max(env(safe-area-inset-top), 20px);
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    z-index: 10;
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+}
+
+#gameOver {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    color: white;
+    padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom) 20px;
+}
+
+#gameOver h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+#gameOver h2 {
+    font-size: 36px;
+    margin-bottom: 40px;
+}
+
+#finalScore {
+    color: #FFD700;
+    font-weight: bold;
+}
+
+#restartBtn {
+    margin-top: 20px;
+    padding: 16px 50px;
+    background: linear-gradient(to bottom, #4CAF50, #2E8B57);
+    border: none;
+    border-radius: 50px;
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#restartBtn:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.telegram-btn {
+    margin-top: 20px;
+    padding: 14px 30px;
+    background: linear-gradient(to bottom, #0088cc, #006699);
+    border-radius: 50px;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-block;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-height: 700px) {
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 26px;
+    }
+    
+    #gameOver h1 {
+        font-size: 36px;
+    }
+    
+    #gameOver h2 {
+        font-size: 28px;
+    }
+    
+    #restartBtn {
+        padding: 14px 40px;
+        font-size: 18px;
+    }
+}
+
+@media (orientation: landscape) {
+    #controls {
+        bottom: 10px;
+        padding: 0 10%;
+    }
+    
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+    }
+    
+    #scoreDisplay {
+        top: max(env(safe-area-inset-top), 10px);
+        left: 10px;
+        font-size: 20px;
+    }
 }
