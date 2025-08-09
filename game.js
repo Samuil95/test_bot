@@ -9,16 +9,15 @@ const player = {
   velocityY: 0,
   velocityX: 0,
   gravity: 0.4,
-  jumpStrength: -12,
+  jumpStrength: -12, // прыжок вверх — отрицательное значение
 };
+
+const jumpHeight = Math.abs(player.jumpStrength * (player.jumpStrength / player.gravity)); 
+// Формула примерная: время полёта вверх * скорость прыжка для высоты
 
 const platformWidth = 60;
 const platformHeight = 10;
-const platformCount = 7;
-
-const maxVerticalGap = 110; // макс вертикальное расстояние
-const minHorizontalGap = 50; // мин горизонтальное расстояние
-const maxHorizontalGap = 150; // макс горизонтальное расстояние
+const platformCount = 8;
 
 const platforms = [];
 let maxHeight = player.y;
@@ -36,15 +35,11 @@ function initPlatforms() {
   let lastX = Math.random() * (canvas.width - platformWidth);
 
   for (let i = 0; i < platformCount; i++) {
-    let newY = lastY - randomRange(50, maxVerticalGap);
+    // Вертикально — ровно jumpHeight (чуть вариации)
+    let newY = lastY - randomRange(jumpHeight * 0.8, jumpHeight);
 
-    // Генерируем X с учётом мин и макс смещения от предыдущей платформы
-    let direction = Math.random() < 0.5 ? -1 : 1;
-    let deltaX = direction * randomRange(minHorizontalGap, maxHorizontalGap);
-    let newX = lastX + deltaX;
-
-    if (newX < 0) newX = 0;
-    if (newX > canvas.width - platformWidth) newX = canvas.width - platformWidth;
+    // Горизонтально — случайно по всему экрану
+    let newX = Math.random() * (canvas.width - platformWidth);
 
     platforms.push({
       x: newX,
@@ -82,8 +77,13 @@ function updatePlayer() {
   player.y += player.velocityY;
 
   player.x += player.velocityX;
-  if (player.x < 0) player.x = 0;
-  if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+  // Wrap-around по горизонтали:
+  if (player.x + player.width < 0) {
+    player.x = canvas.width;
+  } else if (player.x > canvas.width) {
+    player.x = -player.width;
+  }
 
   if (player.y < maxHeight) {
     maxHeight = player.y;
@@ -96,16 +96,28 @@ function updatePlayer() {
 
 function checkPlatformCollision() {
   platforms.forEach(p => {
+    // Проверяем столкновение по вертикали и горизонтали с учетом wrap-around
+    // Для wrap-around по X делаем проверку, что игрок либо на платформе напрямую,
+    // либо с учётом смещения экрана
+
+    // Рассчитаем игрока X с учетом wrap-around для коллизии:
+    let playerXNorm = (player.x + canvas.width) % canvas.width;
+    let platformXNorm = (p.x + canvas.width) % canvas.width;
+
     if (
       player.velocityY > 0 &&
       player.y + player.height <= p.y &&
       player.y + player.height + player.velocityY >= p.y &&
-      player.x + player.width > p.x &&
-      player.x < p.x + p.width
+      (
+        // Игрок и платформа на прямом перекрытии
+        (playerXNorm + player.width > platformXNorm && playerXNorm < platformXNorm + p.width)
+        ||
+        // Или проверим возможное "перекрытие" через границу экрана
+        (playerXNorm + player.width > platformXNorm - canvas.width && playerXNorm < platformXNorm + p.width - canvas.width)
+      )
     ) {
       player.velocityY = player.jumpStrength;
 
-      // Подсчет очков за перепрыгнутую платформу
       if (p.index !== lastPlatformIndex) {
         score++;
         lastPlatformIndex = p.index;
@@ -123,17 +135,12 @@ function scrollWorld() {
       p.y += diff;
 
       if (p.y > canvas.height) {
-        // Генерируем новую платформу сверху
+        // Генерируем новую платформу сверху с вертикальным расстоянием, подходящим под jumpHeight
         const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
-        let newY = highestPlatformY - randomRange(50, maxVerticalGap);
+        let newY = highestPlatformY - randomRange(jumpHeight * 0.8, jumpHeight);
 
-        const highestPlatform = platforms.find(pl => pl.y === highestPlatformY);
-        let direction = Math.random() < 0.5 ? -1 : 1;
-        let deltaX = direction * randomRange(minHorizontalGap, maxHorizontalGap);
-        let newX = highestPlatform.x + deltaX;
-
-        if (newX < 0) newX = 0;
-        if (newX > canvas.width - platformWidth) newX = canvas.width - platformWidth;
+        // Горизонтально — полностью случайно по ширине экрана
+        let newX = Math.random() * (canvas.width - platformWidth);
 
         p.y = newY;
         p.x = newX;
