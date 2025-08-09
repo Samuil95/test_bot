@@ -1,387 +1,113 @@
-// ================ Инициализация игры ================
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-// Размеры экрана iPhone 12 Pro
-const SCREEN_WIDTH = window.innerWidth;
-const SCREEN_HEIGHT = window.innerHeight;
-
-// Конфигурация игры
-const PLAYER_SIZE = Math.min(SCREEN_WIDTH * 0.08, 45);
-const PLATFORM_WIDTH = SCREEN_WIDTH * 0.18;
-const PLATFORM_HEIGHT = Math.max(SCREEN_HEIGHT * 0.012, 5);
-const GRAVITY = 0.35;
-const JUMP_STRENGTH = -10.5;
-const PLAYER_SPEED = 6.5;
-
-// Элементы UI
-const scoreDisplay = document.getElementById('scoreDisplay');
-const gameOverScreen = document.getElementById('gameOver');
-const finalScoreDisplay = document.getElementById('finalScore');
-const restartBtn = document.getElementById('restartBtn');
-
-// Игровые переменные
-const player = {
-    x: SCREEN_WIDTH / 2 - PLAYER_SIZE / 2,
-    y: SCREEN_HEIGHT * 0.7,
-    width: PLAYER_SIZE,
-    height: PLAYER_SIZE,
-    velocityY: 0,
-    velocityX: 0,
-    gravity: GRAVITY,
-    jumpStrength: JUMP_STRENGTH
-};
-
-const platforms = [];
-let maxHeight = player.y;
-let score = 0;
-let lastPlatformIndex = -1;
-let gameActive = true;
-let scrollOffset = 0;
-let lastTime = 0;
-const FPS = 60;
-const FRAME_INTERVAL = 1000 / FPS;
-
-// ================ Основные функции ================
-function initGame() {
-    // Установка размеров canvas
-    canvas.width = SCREEN_WIDTH;
-    canvas.height = SCREEN_HEIGHT;
-    
-    // Сброс игрового состояния
-    player.x = SCREEN_WIDTH / 2 - PLAYER_SIZE / 2;
-    player.y = SCREEN_HEIGHT * 0.7;
-    player.velocityY = 0;
-    player.velocityX = 0;
-    maxHeight = player.y;
-    score = 0;
-    lastPlatformIndex = -1;
-    gameActive = true;
-    scrollOffset = 0;
-    
-    // Обновление UI
-    scoreDisplay.textContent = `Score: ${score}`;
-    gameOverScreen.style.display = 'none';
-    
-    // Создание платформ
-    createPlatforms();
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
-function createPlatforms() {
-    platforms.length = 0;
-    
-    // Стартовая платформа под игроком
-    platforms.push({
-        x: player.x,
-        y: player.y + player.height,
-        width: PLATFORM_WIDTH,
-        height: PLATFORM_HEIGHT,
-        index: 0
-    });
-    
-    let lastY = player.y + player.height;
-    
-    // Создание остальных платформ
-    for (let i = 1; i < 12; i++) {
-        const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
-        const newY = lastY - (jumpHeight * 0.75 + Math.random() * jumpHeight * 0.25);
-        const newX = Math.random() * (SCREEN_WIDTH - PLATFORM_WIDTH);
-        
-        platforms.push({
-            x: newX,
-            y: newY,
-            width: PLATFORM_WIDTH,
-            height: PLATFORM_HEIGHT,
-            index: i
-        });
-        
-        lastY = newY;
-    }
+body {
+    overflow: hidden;
+    background: #6495ED;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-function drawPlayer() {
-    ctx.fillStyle = '#4CAF50';
-    ctx.beginPath();
-    ctx.arc(
-        player.x + player.width / 2,
-        player.y + player.height / 2,
-        player.width / 2,
-        0,
-        Math.PI * 2
-    );
-    ctx.fill();
-    
-    // Детали игрока
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(
-        player.x + player.width / 3,
-        player.y + player.height / 3,
-        player.width / 6,
-        0,
-        Math.PI * 2
-    );
-    ctx.arc(
-        player.x + (player.width * 2) / 3,
-        player.y + player.height / 3,
-        player.width / 6,
-        0,
-        Math.PI * 2
-    );
-    ctx.fill();
+#gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
-function drawPlatforms() {
-    ctx.fillStyle = '#8B4513';
-    
-    for (let i = 0; i < platforms.length; i++) {
-        const p = platforms[i];
-        
-        // Рисуем только видимые платформы
-        if (p.y > player.y - SCREEN_HEIGHT * 1.5 && p.y < player.y + SCREEN_HEIGHT) {
-            ctx.fillRect(p.x, p.y, p.width, p.height);
-            
-            // Текстура платформы
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.fillRect(p.x + 5, p.y + 2, 15, p.height - 4);
-            ctx.fillRect(p.x + 25, p.y + 2, 15, p.height - 4);
-            ctx.fillRect(p.x + 45, p.y + 2, 15, p.height - 4);
-            ctx.fillStyle = '#8B4513';
-        }
-    }
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-function drawBackground() {
-    // Градиентное небо
-    const gradient = ctx.createLinearGradient(0, 0, 0, SCREEN_HEIGHT);
-    gradient.addColorStop(0, '#87CEEB');
-    gradient.addColorStop(1, '#6495ED');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    
-    // Облака
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    for(let i = 0; i < 5; i++) {
-        const x = (i * 200 + scrollOffset * 0.1) % (SCREEN_WIDTH + 200) - 100;
-        ctx.beginPath();
-        ctx.arc(x, 100, 30, 0, Math.PI * 2);
-        ctx.arc(x + 40, 90, 25, 0, Math.PI * 2);
-        ctx.arc(x + 80, 100, 30, 0, Math.PI * 2);
-        ctx.fill();
-    }
+#controls {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20%;
+    opacity: 0.8;
+    z-index: 20;
 }
 
-function updatePlayer() {
-    // Применяем гравитацию
-    player.velocityY += player.gravity;
-    player.y += player.velocityY;
-    player.x += player.velocityX;
-    
-    // Обновляем максимальную высоту
-    if (player.y < maxHeight) {
-        maxHeight = player.y;
-        scrollOffset = SCREEN_HEIGHT - maxHeight;
-    }
-    
-    // Проверка выхода за нижнюю границу
-    if (player.y > SCREEN_HEIGHT) {
-        gameOver();
-        return;
-    }
-    
-    // Переход через боковые границы
-    if (player.x + player.width < 0) {
-        player.x = SCREEN_WIDTH;
-    } else if (player.x > SCREEN_WIDTH) {
-        player.x = -player.width;
-    }
+.control-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(50, 50, 50, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: white;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
 }
 
-function checkPlatformCollision() {
-    const playerBottom = player.y + player.height;
-    
-    for (let i = 0; i < platforms.length; i++) {
-        const p = platforms[i];
-        
-        // Проверка столкновения
-        if (player.velocityY > 0 && 
-            playerBottom <= p.y + 5 && 
-            playerBottom + player.velocityY >= p.y &&
-            player.x + player.width > p.x && 
-            player.x < p.x + p.width) {
-            
-            player.y = p.y - player.height;
-            player.velocityY = player.jumpStrength;
-            
-            // Обновление счета
-            if (p.index !== lastPlatformIndex) {
-                score++;
-                lastPlatformIndex = p.index;
-                scoreDisplay.textContent = `Score: ${score}`;
-            }
-            break;
-        }
-    }
+#scoreDisplay {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    z-index: 10;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 25px;
 }
 
-function scrollWorld() {
-    // Скроллинг мира при достижении верхней части экрана
-    if (player.y < SCREEN_HEIGHT * 0.3) {
-        const diff = SCREEN_HEIGHT * 0.3 - player.y;
-        player.y = SCREEN_HEIGHT * 0.3;
-        
-        for (let i = 0; i < platforms.length; i++) {
-            const p = platforms[i];
-            p.y += diff;
-            
-            // Перемещение платформ, вышедших за пределы экрана
-            if (p.y > SCREEN_HEIGHT) {
-                // Находим самую высокую платформу
-                let minY = platforms[0].y;
-                for (let j = 1; j < platforms.length; j++) {
-                    if (platforms[j].y < minY) minY = platforms[j].y;
-                }
-                
-                // Создаем новую платформу
-                const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
-                p.y = minY - (jumpHeight * 0.75 + Math.random() * jumpHeight * 0.25);
-                p.x = Math.random() * (SCREEN_WIDTH - PLATFORM_WIDTH);
-                
-                // Обновляем индекс
-                let maxIndex = 0;
-                for (let j = 0; j < platforms.length; j++) {
-                    if (platforms[j].index > maxIndex) maxIndex = platforms[j].index;
-                }
-                p.index = maxIndex + 1;
-            }
-        }
-    }
+#gameOver {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    color: white;
 }
 
-function gameOver() {
-    gameActive = false;
-    finalScoreDisplay.textContent = score;
-    gameOverScreen.style.display = 'flex';
+#gameOver h1 {
+    font-size: 52px;
+    margin-bottom: 30px;
 }
 
-function resetGame() {
-    initGame();
+#gameOver h2 {
+    font-size: 42px;
+    margin-bottom: 50px;
 }
 
-// ================ Управление ================
-const keys = {
-    left: false,
-    right: false
-};
-
-// Настройка кнопок управления
-document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    keys.left = true;
-});
-
-document.getElementById('leftBtn').addEventListener('touchend', (e) => {
-    e.preventDefault();
-    keys.left = false;
-});
-
-document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    keys.right = true;
-});
-
-document.getElementById('rightBtn').addEventListener('touchend', (e) => {
-    e.preventDefault();
-    keys.right = false;
-});
-
-// Управление свайпами
-let touchStartX = 0;
-
-canvas.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-    e.preventDefault();
-}, { passive: false });
-
-canvas.addEventListener('touchmove', (e) => {
-    if (!touchStartX) return;
-    
-    const touchX = e.touches[0].clientX;
-    const diffX = touchX - touchStartX;
-    
-    if (Math.abs(diffX) > 10) {
-        keys.left = diffX < 0;
-        keys.right = diffX > 0;
-    }
-    e.preventDefault();
-}, { passive: false });
-
-canvas.addEventListener('touchend', () => {
-    keys.left = false;
-    keys.right = false;
-    touchStartX = 0;
-});
-
-// Обработка ввода
-function handleInput() {
-    if (keys.left) {
-        player.velocityX = -PLAYER_SPEED;
-    } else if (keys.right) {
-        player.velocityX = PLAYER_SPEED;
-    } else {
-        player.velocityX = 0;
-    }
+#finalScore {
+    color: #FFD700;
+    font-weight: bold;
 }
 
-// ================ Игровой цикл ================
-function gameLoop(timestamp) {
-    if (!gameActive) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    
-    // Контроль FPS
-    if (timestamp < lastTime + FRAME_INTERVAL) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    
-    lastTime = timestamp;
-    
-    // Обновление игры
-    handleInput();
-    updatePlayer();
-    
-    if (gameActive) {
-        checkPlatformCollision();
-        scrollWorld();
-        
-        // Отрисовка
-        ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-        drawBackground();
-        drawPlatforms();
-        drawPlayer();
-    }
-    
-    requestAnimationFrame(gameLoop);
+#restartBtn {
+    margin-top: 30px;
+    padding: 18px 60px;
+    background: linear-gradient(to bottom, #4CAF50, #2E8B57);
+    border: none;
+    border-radius: 60px;
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
-
-// ================ Запуск игры ================
-// Обработка ресайза окна
-function handleResize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    initGame();
-}
-
-window.addEventListener('resize', handleResize);
-window.addEventListener('orientationchange', handleResize);
-
-// Инициализация игры при загрузке
-window.addEventListener('load', () => {
-    initGame();
-    gameLoop(0);
-});
-
-// Настройка кнопки рестарта
-restartBtn.addEventListener('click', resetGame);
