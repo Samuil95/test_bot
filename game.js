@@ -12,29 +12,52 @@ const player = {
   jumpStrength: -12,
 };
 
-const platforms = [];
 const platformWidth = 60;
 const platformHeight = 10;
 const platformCount = 7;
 
+const maxVerticalGap = 110; // Макс вертикальное расстояние между платформами (чтобы игрок допрыгнул)
+const minHorizontalGap = 50; // Мин горизонтальное расстояние между платформами (чтобы не было наложения)
+const maxHorizontalGap = 150; // Макс горизонтальное расстояние (чтобы игрок мог допрыгнуть вбок)
+
+const platforms = [];
 let maxHeight = player.y;
 
-// Максимальная вертикальная дистанция между платформами, чтобы игрок мог прыгнуть
-const maxPlatformGap = 120;
+let score = 0; // Счётчик за перепрыгнутые платформы
+let lastPlatformIndex = -1; // Индекс платформы, которую игрок последний раз перепрыгнул
+
+function randomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
 
 function initPlatforms() {
   platforms.length = 0;
   let lastY = canvas.height;
+  let lastX = Math.random() * (canvas.width - platformWidth);
+
   for (let i = 0; i < platformCount; i++) {
-    // Чтобы платформа была на расстоянии, доступном для прыжка
-    let newY = lastY - (50 + Math.random() * (maxPlatformGap - 50)); 
+    // Генерируем Y с гарантией, что вертикальный промежуток не превышает прыжок
+    let newY = lastY - randomRange(50, maxVerticalGap);
+
+    // Горизонтально: смещаем относительно предыдущей платформы, с ограничениями
+    let direction = Math.random() < 0.5 ? -1 : 1; // Влево или вправо
+    let deltaX = direction * randomRange(minHorizontalGap, maxHorizontalGap);
+    let newX = lastX + deltaX;
+
+    // Проверяем границы экрана
+    if (newX < 0) newX = 0;
+    if (newX > canvas.width - platformWidth) newX = canvas.width - platformWidth;
+
     platforms.push({
-      x: Math.random() * (canvas.width - platformWidth),
+      x: newX,
       y: newY,
       width: platformWidth,
       height: platformHeight,
+      index: i, // индекс платформы
     });
+
     lastY = newY;
+    lastX = newX;
   }
 }
 
@@ -53,8 +76,7 @@ function drawPlatforms() {
 function drawScore() {
   ctx.fillStyle = 'black';
   ctx.font = '20px Arial';
-  // Очки — это высота, на которую поднялся игрок от начального положения (игрок идёт "вверх", y уменьшается)
-  ctx.fillText(`Score: ${Math.max(0, Math.floor(maxHeight - player.y))}`, 10, 30);
+  ctx.fillText(`Score: ${score}`, 10, 30);
 }
 
 function updatePlayer() {
@@ -84,6 +106,12 @@ function checkPlatformCollision() {
       player.x < p.x + p.width
     ) {
       player.velocityY = player.jumpStrength;
+
+      // Обновляем счётчик, если перепрыгнули новую платформу
+      if (p.index !== lastPlatformIndex) {
+        score++;
+        lastPlatformIndex = p.index;
+      }
     }
   });
 }
@@ -95,11 +123,28 @@ function scrollWorld() {
 
     platforms.forEach(p => {
       p.y += diff;
+
+      // Если платформа ушла вниз за экран — создаём новую сверху с корректным расстоянием
       if (p.y > canvas.height) {
-        // Когда платформа уходит вниз, ставим её наверх с новой Y, гарантируя прыжок
         const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
-        p.y = highestPlatformY - (50 + Math.random() * (maxPlatformGap - 50));
-        p.x = Math.random() * (canvas.width - platformWidth);
+        let newY = highestPlatformY - randomRange(50, maxVerticalGap);
+
+        // Горизонтальное расположение относительно верхней платформы
+        // Для более плавного движения возьмём случайный сдвиг в пределах границ
+        let highestPlatform = platforms.find(pl => pl.y === highestPlatformY);
+        let direction = Math.random() < 0.5 ? -1 : 1;
+        let deltaX = direction * randomRange(minHorizontalGap, maxHorizontalGap);
+        let newX = highestPlatform.x + deltaX;
+
+        if (newX < 0) newX = 0;
+        if (newX > canvas.width - platformWidth) newX = canvas.width - platformWidth;
+
+        // Обновляем свойства платформы
+        p.y = newY;
+        p.x = newX;
+
+        // Для правильного подсчёта очков увеличиваем индекс платформы
+        p.index = (p.index + platformCount) % 100000; // ограничение по индексу
       }
     });
 
@@ -144,6 +189,8 @@ function resetGame() {
   player.velocityX = 0;
   player.velocityY = 0;
   maxHeight = player.y;
+  score = 0;
+  lastPlatformIndex = -1;
   initPlatforms();
 }
 
