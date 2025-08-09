@@ -9,11 +9,10 @@ const player = {
   velocityY: 0,
   velocityX: 0,
   gravity: 0.4,
-  jumpStrength: -12, // прыжок вверх — отрицательное значение
+  jumpStrength: -12,
 };
 
 const jumpHeight = Math.abs(player.jumpStrength * (player.jumpStrength / player.gravity)); 
-// Формула примерная: время полёта вверх * скорость прыжка для высоты
 
 const platformWidth = 60;
 const platformHeight = 10;
@@ -29,16 +28,23 @@ function randomRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+// Ставим стартовую платформу под игроком, чтобы не падал в пустоту
 function initPlatforms() {
   platforms.length = 0;
-  let lastY = canvas.height;
-  let lastX = Math.random() * (canvas.width - platformWidth);
 
-  for (let i = 0; i < platformCount; i++) {
-    // Вертикально — ровно jumpHeight (чуть вариации)
+  platforms.push({
+    x: player.x,
+    y: player.y + player.height,
+    width: platformWidth,
+    height: platformHeight,
+    index: 0,
+  });
+
+  let lastY = player.y + player.height;
+  let lastX = player.x;
+
+  for (let i = 1; i < platformCount; i++) {
     let newY = lastY - randomRange(jumpHeight * 0.8, jumpHeight);
-
-    // Горизонтально — случайно по всему экрану
     let newX = Math.random() * (canvas.width - platformWidth);
 
     platforms.push({
@@ -78,7 +84,7 @@ function updatePlayer() {
 
   player.x += player.velocityX;
 
-  // Wrap-around по горизонтали:
+  // Wrap-around по горизонтали
   if (player.x + player.width < 0) {
     player.x = canvas.width;
   } else if (player.x > canvas.width) {
@@ -96,31 +102,24 @@ function updatePlayer() {
 
 function checkPlatformCollision() {
   platforms.forEach(p => {
-    // Проверяем столкновение по вертикали и горизонтали с учетом wrap-around
-    // Для wrap-around по X делаем проверку, что игрок либо на платформе напрямую,
-    // либо с учётом смещения экрана
+    if (player.velocityY > 0) {
+      const isAbovePlatform = player.y + player.height <= p.y + 10;
+      const willPassThrough = player.y + player.height + player.velocityY >= p.y;
 
-    // Рассчитаем игрока X с учетом wrap-around для коллизии:
-    let playerXNorm = (player.x + canvas.width) % canvas.width;
-    let platformXNorm = (p.x + canvas.width) % canvas.width;
+      let playerXNorm = (player.x + canvas.width) % canvas.width;
+      let platformXNorm = (p.x + canvas.width) % canvas.width;
 
-    if (
-      player.velocityY > 0 &&
-      player.y + player.height <= p.y &&
-      player.y + player.height + player.velocityY >= p.y &&
-      (
-        // Игрок и платформа на прямом перекрытии
-        (playerXNorm + player.width > platformXNorm && playerXNorm < platformXNorm + p.width)
-        ||
-        // Или проверим возможное "перекрытие" через границу экрана
-        (playerXNorm + player.width > platformXNorm - canvas.width && playerXNorm < platformXNorm + p.width - canvas.width)
-      )
-    ) {
-      player.velocityY = player.jumpStrength;
+      const horizontalCollision =
+        (playerXNorm + player.width > platformXNorm && playerXNorm < platformXNorm + p.width) ||
+        (playerXNorm + player.width > platformXNorm - canvas.width && playerXNorm < platformXNorm + p.width - canvas.width);
 
-      if (p.index !== lastPlatformIndex) {
-        score++;
-        lastPlatformIndex = p.index;
+      if (isAbovePlatform && willPassThrough && horizontalCollision) {
+        player.velocityY = player.jumpStrength;
+
+        if (p.index !== lastPlatformIndex) {
+          score++;
+          lastPlatformIndex = p.index;
+        }
       }
     }
   });
@@ -135,11 +134,8 @@ function scrollWorld() {
       p.y += diff;
 
       if (p.y > canvas.height) {
-        // Генерируем новую платформу сверху с вертикальным расстоянием, подходящим под jumpHeight
         const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
         let newY = highestPlatformY - randomRange(jumpHeight * 0.8, jumpHeight);
-
-        // Горизонтально — полностью случайно по ширине экрана
         let newX = Math.random() * (canvas.width - platformWidth);
 
         p.y = newY;
