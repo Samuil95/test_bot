@@ -9,7 +9,7 @@ const player = {
   velocityY: 0,
   velocityX: 0,
   gravity: 0.4,
-  jumpStrength: -12,  // чуть сильнее прыжок
+  jumpStrength: -12,
 };
 
 const platforms = [];
@@ -19,15 +19,22 @@ const platformCount = 7;
 
 let maxHeight = player.y;
 
+// Максимальная вертикальная дистанция между платформами, чтобы игрок мог прыгнуть
+const maxPlatformGap = 120;
+
 function initPlatforms() {
   platforms.length = 0;
+  let lastY = canvas.height;
   for (let i = 0; i < platformCount; i++) {
+    // Чтобы платформа была на расстоянии, доступном для прыжка
+    let newY = lastY - (50 + Math.random() * (maxPlatformGap - 50)); 
     platforms.push({
       x: Math.random() * (canvas.width - platformWidth),
-      y: canvas.height - i * 80,
+      y: newY,
       width: platformWidth,
       height: platformHeight,
     });
+    lastY = newY;
   }
 }
 
@@ -46,25 +53,22 @@ function drawPlatforms() {
 function drawScore() {
   ctx.fillStyle = 'black';
   ctx.font = '20px Arial';
+  // Очки — это высота, на которую поднялся игрок от начального положения (игрок идёт "вверх", y уменьшается)
   ctx.fillText(`Score: ${Math.max(0, Math.floor(maxHeight - player.y))}`, 10, 30);
 }
 
 function updatePlayer() {
-  // Добавляем гравитацию
   player.velocityY += player.gravity;
   player.y += player.velocityY;
 
-  // Горизонтальное движение с ограничениями по краям
   player.x += player.velocityX;
   if (player.x < 0) player.x = 0;
   if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-  // Обновляем максимальную высоту (для очков)
   if (player.y < maxHeight) {
     maxHeight = player.y;
   }
 
-  // Если упал вниз - сброс игры
   if (player.y > canvas.height) {
     resetGame();
   }
@@ -72,40 +76,37 @@ function updatePlayer() {
 
 function checkPlatformCollision() {
   platforms.forEach(p => {
-    // Проверяем, касается ли игрок платформы при падении вниз (velocityY > 0)
     if (
-      player.velocityY > 0 && 
+      player.velocityY > 0 && // падает вниз
       player.y + player.height <= p.y &&
       player.y + player.height + player.velocityY >= p.y &&
       player.x + player.width > p.x &&
       player.x < p.x + p.width
     ) {
-      player.velocityY = player.jumpStrength;  // Прыжок вверх
+      player.velocityY = player.jumpStrength;
     }
   });
 }
 
 function scrollWorld() {
-  // Если игрок поднялся выше 1/3 высоты канваса, то "поднимаем" платформы вниз, создавая эффект движения вверх
   if (player.y < canvas.height / 3) {
     const diff = (canvas.height / 3) - player.y;
     player.y = canvas.height / 3;
 
     platforms.forEach(p => {
       p.y += diff;
-
-      // Если платформа ушла вниз за экран — переносим её наверх
       if (p.y > canvas.height) {
-        p.y = 0;
+        // Когда платформа уходит вниз, ставим её наверх с новой Y, гарантируя прыжок
+        const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
+        p.y = highestPlatformY - (50 + Math.random() * (maxPlatformGap - 50));
         p.x = Math.random() * (canvas.width - platformWidth);
       }
     });
 
-    maxHeight += diff; // увеличиваем очки
+    maxHeight += diff;
   }
 }
 
-// Управление
 const keys = {
   left: false,
   right: false,
