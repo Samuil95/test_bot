@@ -1,12 +1,275 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Doodle Jump Clone</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Doodle Jump Mobile</title>
+<style>
+  body, html {
+    margin: 0; padding: 0; overflow: hidden; background: #cce7ff;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    user-select: none;
+    font-family: Arial, sans-serif;
+  }
+  #gameCanvas {
+    display: block;
+    background: #9bd3ff;
+  }
+  #info {
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    color: #333;
+    font-weight: bold;
+    font-size: 20px;
+    user-select: none;
+  }
+  /* Опционально — подсветка зон касания */
+  #leftControl, #rightControl {
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 50%;
+    opacity: 0.1;
+    z-index: 10;
+  }
+  #leftControl { left: 0; background: red; }
+  #rightControl { right: 0; background: green; }
+</style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="400" height="600"></canvas>
-  <script src="game.js"></script>
+
+<div id="info">Score: 0</div>
+<canvas id="gameCanvas"></canvas>
+<!-- Опциональные сенсорные зоны -->
+<div id="leftControl"></div>
+<div id="rightControl"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const info = document.getElementById('info');
+
+let screenWidth, screenHeight;
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  screenWidth = window.innerWidth;
+  screenHeight = window.innerHeight;
+
+  canvas.width = screenWidth * dpr;
+  canvas.height = screenHeight * dpr;
+  canvas.style.width = screenWidth + 'px';
+  canvas.style.height = screenHeight + 'px';
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+}
+
+resizeCanvas();
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  resetGame();
+});
+
+// Игрок и платформы — размеры пропорциональны экрану
+const player = {
+  width: 30,
+  height: 30,
+  x: 0,
+  y: 0,
+  velocityX: 0,
+  velocityY: 0,
+  gravity: 0.4,
+  jumpStrength: -12,
+};
+
+const platformWidth = 80;
+const platformHeight = 12;
+const platformCount = 10;
+const platforms = [];
+let maxHeight;
+let score = 0;
+let lastPlatformIndex = -1;
+
+function randomRange(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function initPlatforms() {
+  platforms.length = 0;
+  // Стартовая платформа прямо под игроком
+  platforms.push({
+    x: player.x,
+    y: player.y + player.height,
+    width: platformWidth,
+    height: platformHeight,
+    index: 0,
+  });
+  let lastY = player.y + player.height;
+  for (let i = 1; i < platformCount; i++) {
+    let newY = lastY - randomRange(Math.abs(player.jumpStrength) * 20 * 0.8, Math.abs(player.jumpStrength) * 20);
+    let newX = Math.random() * (screenWidth - platformWidth);
+    platforms.push({
+      x: newX,
+      y: newY,
+      width: platformWidth,
+      height: platformHeight,
+      index: i,
+    });
+    lastY = newY;
+  }
+}
+
+function drawPlayer() {
+  ctx.fillStyle = 'green';
+  ctx.fillRect(player.x, player.y, player.width, player.height);
+}
+
+function drawPlatforms() {
+  ctx.fillStyle = 'brown';
+  platforms.forEach(p => {
+    ctx.fillRect(p.x, p.y, p.width, p.height);
+  });
+}
+
+function drawScore() {
+  info.textContent = `Score: ${score}`;
+}
+
+function updatePlayer() {
+  player.velocityY += player.gravity;
+  player.y += player.velocityY;
+
+  player.x += player.velocityX;
+
+  // Wrap-around по горизонтали
+  if (player.x + player.width < 0) player.x = screenWidth;
+  if (player.x > screenWidth) player.x = -player.width;
+
+  if (player.y < maxHeight) maxHeight = player.y;
+
+  if (player.y > screenHeight) resetGame();
+}
+
+function checkPlatformCollision() {
+  platforms.forEach(p => {
+    if (player.velocityY > 0) {
+      const isAbovePlatform = player.y + player.height <= p.y + 10;
+      const willPassThrough = player.y + player.height + player.velocityY >= p.y;
+
+      // Нормализуем X для wrap-around
+      let playerXNorm = (player.x + screenWidth) % screenWidth;
+      let platformXNorm = (p.x + screenWidth) % screenWidth;
+
+      const horizontalCollision =
+        (playerXNorm + player.width > platformXNorm && playerXNorm < platformXNorm + p.width) ||
+        (playerXNorm + player.width > platformXNorm - screenWidth && playerXNorm < platformXNorm + p.width - screenWidth);
+
+      if (isAbovePlatform && willPassThrough && horizontalCollision) {
+        player.velocityY = player.jumpStrength;
+        if (p.index !== lastPlatformIndex) {
+          score++;
+          lastPlatformIndex = p.index;
+        }
+      }
+    }
+  });
+}
+
+function scrollWorld() {
+  if (player.y < screenHeight / 3) {
+    const diff = (screenHeight / 3) - player.y;
+    player.y = screenHeight / 3;
+
+    platforms.forEach(p => {
+      p.y += diff;
+
+      if (p.y > screenHeight) {
+        const highestPlatformY = Math.min(...platforms.map(pl => pl.y));
+        let newY = highestPlatformY - randomRange(Math.abs(player.jumpStrength) * 20 * 0.8, Math.abs(player.jumpStrength) * 20);
+        let newX = Math.random() * (screenWidth - platformWidth);
+
+        p.y = newY;
+        p.x = newX;
+
+        p.index = (p.index + platformCount) % 100000;
+      }
+    });
+
+    maxHeight += diff;
+  }
+}
+
+// Сенсорное управление
+let touchLeft = false;
+let touchRight = false;
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (let touch of e.touches) {
+    if (touch.clientX < screenWidth / 2) {
+      touchLeft = true;
+    } else {
+      touchRight = true;
+    }
+  }
+});
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (e.touches.length === 0) {
+    touchLeft = false;
+    touchRight = false;
+  } else {
+    touchLeft = false;
+    touchRight = false;
+    for (let touch of e.touches) {
+      if (touch.clientX < screenWidth / 2) touchLeft = true;
+      else touchRight = true;
+    }
+  }
+});
+
+function handleInput() {
+  if (touchLeft) {
+    player.velocityX = -5;
+  } else if (touchRight) {
+    player.velocityX = 5;
+  } else {
+    player.velocityX = 0;
+  }
+}
+
+function resetGame() {
+  player.x = screenWidth / 2 - player.width / 2;
+  player.y = screenHeight - 80;
+  player.velocityX = 0;
+  player.velocityY = 0;
+  maxHeight = player.y;
+  score = 0;
+  lastPlatformIndex = -1;
+  initPlatforms();
+}
+
+function gameLoop() {
+  ctx.clearRect(0, 0, screenWidth, screenHeight);
+
+  handleInput();
+  updatePlayer();
+  checkPlatformCollision();
+  scrollWorld();
+
+  drawPlatforms();
+  drawPlayer();
+  drawScore();
+
+  requestAnimationFrame(gameLoop);
+}
+
+resetGame();
+gameLoop();
+</script>
+
 </body>
 </html>
