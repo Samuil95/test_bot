@@ -4,7 +4,121 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Doodle Jump Mobile</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #6495ED;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20%;
+            opacity: 0.8;
+            z-index: 20;
+        }
+        
+        .control-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(50, 50, 50, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        #scoreDisplay {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 10;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 25px;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+        }
+        
+        #gameOver h1 {
+            font-size: 52px;
+            margin-bottom: 30px;
+        }
+        
+        #gameOver h2 {
+            font-size: 42px;
+            margin-bottom: 50px;
+        }
+        
+        #finalScore {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        #restartBtn {
+            margin-top: 30px;
+            padding: 18px 60px;
+            background: linear-gradient(to bottom, #4CAF50, #2E8B57);
+            border: none;
+            border-radius: 60px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
 </head>
 <body>
     <div id="gameContainer">
@@ -23,6 +137,298 @@
         </div>
     </div>
     
-    <script src="script.js"></script>
+    <script>
+        // ================ Инициализация игры ================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Элементы UI
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        
+        // Игровые константы
+        const PLAYER_SIZE = 40;
+        const PLATFORM_WIDTH = 70;
+        const PLATFORM_HEIGHT = 10;
+        const GRAVITY = 0.35;
+        const JUMP_STRENGTH = -10.5;
+        const PLAYER_SPEED = 6.5;
+        
+        // Игровые переменные
+        const player = {
+            x: 0,
+            y: 0,
+            width: PLAYER_SIZE,
+            height: PLAYER_SIZE,
+            velocityY: 0,
+            velocityX: 0,
+            gravity: GRAVITY,
+            jumpStrength: JUMP_STRENGTH
+        };
+        
+        const platforms = [];
+        let maxHeight = 0;
+        let score = 0;
+        let lastPlatformIndex = -1;
+        let gameActive = true;
+        let lastTime = 0;
+        const FPS = 60;
+        const FRAME_INTERVAL = 1000 / FPS;
+        
+        // ================ Основные функции ================
+        function initGame() {
+            // Установка размеров canvas
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Сброс игрового состояния
+            player.x = canvas.width / 2 - PLAYER_SIZE / 2;
+            player.y = canvas.height * 0.7;
+            player.velocityY = 0;
+            player.velocityX = 0;
+            maxHeight = player.y;
+            score = 0;
+            lastPlatformIndex = -1;
+            gameActive = true;
+            
+            // Обновление UI
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameOverScreen.style.display = 'none';
+            
+            // Создание платформ
+            createPlatforms();
+            
+            console.log("Game initialized");
+        }
+        
+        function createPlatforms() {
+            platforms.length = 0;
+            
+            // Стартовая платформа под игроком
+            platforms.push({
+                x: player.x,
+                y: player.y + player.height,
+                width: PLATFORM_WIDTH,
+                height: PLATFORM_HEIGHT,
+                index: 0
+            });
+            
+            let lastY = player.y + player.height;
+            const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
+            
+            // Создание остальных платформ
+            for (let i = 1; i < 12; i++) {
+                const newY = lastY - (jumpHeight * 0.75 + Math.random() * jumpHeight * 0.25);
+                const newX = Math.random() * (canvas.width - PLATFORM_WIDTH);
+                
+                platforms.push({
+                    x: newX,
+                    y: newY,
+                    width: PLATFORM_WIDTH,
+                    height: PLATFORM_HEIGHT,
+                    index: i
+                });
+                
+                lastY = newY;
+            }
+        }
+        
+        function drawPlayer() {
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(
+                player.x + player.width / 2,
+                player.y + player.height / 2,
+                player.width / 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+        
+        function drawPlatforms() {
+            ctx.fillStyle = '#8B4513';
+            
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+            }
+        }
+        
+        function drawBackground() {
+            // Градиентное небо
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#6495ED');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function updatePlayer() {
+            // Применяем гравитацию
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+            player.x += player.velocityX;
+            
+            // Обновляем максимальную высоту
+            if (player.y < maxHeight) {
+                maxHeight = player.y;
+            }
+            
+            // Проверка выхода за нижнюю границу
+            if (player.y > canvas.height) {
+                gameOver();
+                return;
+            }
+            
+            // Переход через боковые границы
+            if (player.x + player.width < 0) {
+                player.x = canvas.width;
+            } else if (player.x > canvas.width) {
+                player.x = -player.width;
+            }
+        }
+        
+        function checkPlatformCollision() {
+            const playerBottom = player.y + player.height;
+            
+            for (let i = 0; i < platforms.length; i++) {
+                const p = platforms[i];
+                
+                // Проверка столкновения
+                if (player.velocityY > 0 && 
+                    playerBottom <= p.y + 5 && 
+                    playerBottom + player.velocityY >= p.y &&
+                    player.x + player.width > p.x && 
+                    player.x < p.x + p.width) {
+                    
+                    player.y = p.y - player.height;
+                    player.velocityY = player.jumpStrength;
+                    
+                    // Обновление счета
+                    if (p.index !== lastPlatformIndex) {
+                        score++;
+                        lastPlatformIndex = p.index;
+                        scoreDisplay.textContent = `Score: ${score}`;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        function scrollWorld() {
+            // Скроллинг мира при достижении верхней части экрана
+            if (player.y < canvas.height * 0.3) {
+                const diff = canvas.height * 0.3 - player.y;
+                player.y = canvas.height * 0.3;
+                
+                for (let i = 0; i < platforms.length; i++) {
+                    const p = platforms[i];
+                    p.y += diff;
+                }
+            }
+        }
+        
+        function gameOver() {
+            gameActive = false;
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        function resetGame() {
+            initGame();
+            gameLoop(0);
+        }
+        
+        // ================ Управление ================
+        const keys = {
+            left: false,
+            right: false
+        };
+        
+        // Настройка кнопок управления
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.left = true;
+        });
+        
+        leftBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.left = false;
+        });
+        
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keys.right = true;
+        });
+        
+        rightBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.right = false;
+        });
+        
+        // Обработка ввода
+        function handleInput() {
+            if (keys.left) {
+                player.velocityX = -PLAYER_SPEED;
+            } else if (keys.right) {
+                player.velocityX = PLAYER_SPEED;
+            } else {
+                player.velocityX = 0;
+            }
+        }
+        
+        // ================ Игровой цикл ================
+        function gameLoop(timestamp) {
+            if (!gameActive) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            // Инициализация времени
+            if (!lastTime) lastTime = timestamp;
+            
+            // Контроль FPS
+            const delta = timestamp - lastTime;
+            if (delta < FRAME_INTERVAL) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            lastTime = timestamp - (delta % FRAME_INTERVAL);
+            
+            // Обновление игры
+            handleInput();
+            updatePlayer();
+            
+            if (gameActive) {
+                checkPlatformCollision();
+                scrollWorld();
+                
+                // Отрисовка
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBackground();
+                drawPlatforms();
+                drawPlayer();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ================ Запуск игры ================
+        // Инициализация игры при загрузке
+        window.addEventListener('load', () => {
+            console.log("Page loaded, initializing game...");
+            initGame();
+            gameLoop(0);
+        });
+        
+        // Настройка кнопки рестарта
+        restartBtn.addEventListener('click', resetGame);
+    </script>
 </body>
 </html>
