@@ -3,22 +3,21 @@ if (window.Telegram?.WebApp) {
     Telegram.WebApp.ready();
 }
 
-// ================ Инициализация игры ================
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Элементы UI
+// UI элементы
 const scoreDisplay = document.getElementById('scoreDisplay');
 const gameOverScreen = document.getElementById('gameOver');
 const finalScoreDisplay = document.getElementById('finalScore');
 const restartBtn = document.getElementById('restartBtn');
 
-// Игровые константы (увеличен прыжок для iPhone 12 Pro)
+// Константы
 const PLAYER_SIZE = 40;
 const PLATFORM_WIDTH = 70;
 const PLATFORM_HEIGHT = 10;
 const GRAVITY = 0.35;
-const JUMP_STRENGTH = -12.5; // было -10.5
+const JUMP_STRENGTH = -12.5; // усилен для iPhone 12 Pro
 const PLAYER_SPEED = 6.5;
 
 // Игровые переменные
@@ -42,10 +41,10 @@ let lastTime = 0;
 const FPS = 60;
 const FRAME_INTERVAL = 1000 / FPS;
 
-// Запрет прокрутки на iOS
+// Запрет скроллов на iOS
 document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-// Функция ресайза с visualViewport (фикс Safari на iPhone)
+// Функция ресайза
 function resizeCanvas() {
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     canvas.width = window.innerWidth;
@@ -53,11 +52,11 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// ================ Основные функции ================
+// Инициализация
 function initGame() {
     resizeCanvas();
 
-    player.x = canvas.width / 2 - PLAYER_SIZE / 2;
+    player.x = (canvas.width - PLAYER_SIZE) / 2;
     player.y = canvas.height * 0.7;
     player.velocityY = 0;
     player.velocityX = 0;
@@ -72,25 +71,26 @@ function initGame() {
     createPlatforms();
 }
 
+// Генерация платформ
 function createPlatforms() {
     platforms.length = 0;
 
-    // Стартовая платформа
+    const startPlatformX = (canvas.width - PLATFORM_WIDTH) / 2;
+    const startPlatformY = player.y + player.height;
+
     platforms.push({
-        x: player.x,
-        y: player.y + player.height,
+        x: startPlatformX,
+        y: startPlatformY,
         width: PLATFORM_WIDTH,
         height: PLATFORM_HEIGHT,
         index: 0
     });
 
-    let lastY = player.y + player.height;
+    let lastY = startPlatformY;
+    const jumpHeight = Math.pow(player.jumpStrength, 2) / (2 * player.gravity);
 
-    const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
-
-    // Ограничения высоты платформ
-    const maxStep = Math.min(jumpHeight * 0.9, canvas.height * 0.28); 
-    const minStep = canvas.height * 0.15;
+    const maxStep = Math.min(jumpHeight * 0.8, canvas.height * 0.25);
+    const minStep = canvas.height * 0.12;
 
     for (let i = 1; i < 12; i++) {
         let step = minStep + Math.random() * (maxStep - minStep);
@@ -109,6 +109,7 @@ function createPlatforms() {
     }
 }
 
+// Отрисовка
 function drawPlayer() {
     ctx.fillStyle = '#4CAF50';
     ctx.beginPath();
@@ -137,6 +138,7 @@ function drawBackground() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+// Логика
 function updatePlayer() {
     player.velocityY += player.gravity;
     player.y += player.velocityY;
@@ -195,7 +197,6 @@ function gameOver() {
     finalScoreDisplay.textContent = score;
     gameOverScreen.style.display = 'flex';
 
-    // Отправляем результат в Telegram WebApp
     if (window.Telegram?.WebApp) {
         Telegram.WebApp.sendData(JSON.stringify({ score }));
     }
@@ -206,7 +207,7 @@ function resetGame() {
     gameLoop(0);
 }
 
-// ================ Управление ================
+// Управление
 const keys = { left: false, right: false };
 document.getElementById('leftBtn').addEventListener('touchstart', e => { e.preventDefault(); keys.left = true; });
 document.getElementById('leftBtn').addEventListener('touchend', e => { e.preventDefault(); keys.left = false; });
@@ -223,7 +224,7 @@ function handleInput() {
     }
 }
 
-// ================ Игровой цикл ================
+// Игровой цикл
 function gameLoop(timestamp) {
     if (!gameActive) {
         requestAnimationFrame(gameLoop);
@@ -253,7 +254,7 @@ function gameLoop(timestamp) {
     requestAnimationFrame(gameLoop);
 }
 
-// ================ Запуск игры ================
+// Запуск
 window.addEventListener('load', () => {
     initGame();
     gameLoop(0);
