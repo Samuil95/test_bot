@@ -1,14 +1,17 @@
-// Размеры игрового поля (в блоках)
+// ============== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ==============
 const GRID_SIZE = 20;
-const BLOCK_SIZE = 20; // Размер одного блока в пикселях
+const CELL_SIZE = 20;
+const FPS = 10;
 
 // Направления
-const UP = { x: 0, y: -1 };
-const DOWN = { x: 0, y: 1 };
-const LEFT = { x: -1, y: 0 };
-const RIGHT = { x: 1, y: 0 };
+const DIRECTIONS = {
+    UP: { x: 0, y: -1 },
+    DOWN: { x: 0, y: 1 },
+    LEFT: { x: -1, y: 0 },
+    RIGHT: { x: 1, y: 0 }
+};
 
-// Элементы
+// Элементы DOM
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('scoreDisplay');
@@ -20,184 +23,290 @@ const downBtn = document.getElementById('downBtn');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 
-// Переменные игры
+// Игровые переменные
 let snake = [];
 let food = {};
-let direction = RIGHT;
-let nextDirection = RIGHT;
+let direction = DIRECTIONS.RIGHT;
+let nextDirection = DIRECTIONS.RIGHT;
 let score = 0;
 let gameActive = false;
-let gameLoopId = null;
+let lastRenderTime = 0;
+let gameSpeed = FPS;
 
-// Инициализация игры
+// ============== ФУНКЦИИ ИНИЦИАЛИЗАЦИИ ==============
 function initGame() {
-    // Размер canvas
-    canvas.width = GRID_SIZE * BLOCK_SIZE;
-    canvas.height = GRID_SIZE * BLOCK_SIZE;
-
+    // Установка размеров canvas
+    canvas.width = GRID_SIZE * CELL_SIZE;
+    canvas.height = GRID_SIZE * CELL_SIZE;
+    
     // Инициализация змейки
+    const startX = Math.floor(GRID_SIZE / 2);
+    const startY = Math.floor(GRID_SIZE / 2);
     snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: startX, y: startY },
+        { x: startX - 1, y: startY },
+        { x: startX - 2, y: startY }
     ];
-
-    // Создаем еду
+    
+    // Генерация еды
     generateFood();
-
-    // Сброс направления
-    direction = RIGHT;
-    nextDirection = RIGHT;
-
-    // Сброс счета
+    
+    // Сброс направления и счета
+    direction = DIRECTIONS.RIGHT;
+    nextDirection = DIRECTIONS.RIGHT;
     score = 0;
     scoreDisplay.textContent = `Счет: ${score}`;
-
-    // Скрыть экран окончания игры
+    
+    // Скрыть экран завершения игры
     gameOverScreen.style.display = 'none';
-
-    // Запуск игры
+    
+    // Активация игры
     gameActive = true;
+    
+    // Запуск игрового цикла
+    requestAnimationFrame(mainLoop);
 }
 
-// Генерация еды
 function generateFood() {
-    // Генерируем случайные координаты, пока не найдем свободное место
-    let newFood;
-    do {
-        newFood = {
-            x: Math.floor(Math.random() * GRID_SIZE),
-            y: Math.floor(Math.random() * GRID_SIZE)
-        };
-    } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
-
-    food = newFood;
+    // Создаем массив всех занятых позиций
+    const occupiedPositions = new Set(snake.map(segment => `${segment.x},${segment.y}`));
+    
+    // Список свободных позиций
+    const freePositions = [];
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            if (!occupiedPositions.has(`${x},${y}`)) {
+                freePositions.push({x, y});
+            }
+        }
+    }
+    
+    // Если есть свободные позиции - выбираем случайную
+    if (freePositions.length > 0) {
+        const randomIndex = Math.floor(Math.random() * freePositions.length);
+        food = freePositions[randomIndex];
+    } else {
+        // Если свободных позиций нет (змея заполнила всё поле)
+        food = {x: -1, y: -1}; // Невидимая еда
+    }
 }
 
-// Обновление игры
+// ============== ОСНОВНЫЕ ФУНКЦИИ ИГРЫ ==============
 function update() {
     if (!gameActive) return;
-
-    // Обновляем направление
+    
+    // Обновление направления
     direction = nextDirection;
-
-    // Перемещаем змейку: добавляем голову в новом направлении
-    const head = { ...snake[0] };
-    head.x += direction.x;
-    head.y += direction.y;
-
-    // Проверка на столкновение с границами
+    
+    // Перемещение головы змейки
+    const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
+    
+    // Проверка столкновения со стенами
     if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
-        gameOver();
+        endGame();
         return;
     }
-
-    // Проверка на столкновение с собой
-    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
-        gameOver();
-        return;
+    
+    // Проверка столкновения с собой
+    for (let i = 0; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+            endGame();
+            return;
+        }
     }
-
-    // Добавляем новую голову
+    
+    // Добавление новой головы
     snake.unshift(head);
-
-    // Проверка, съели ли еду
+    
+    // Проверка съедания еды
     if (head.x === food.x && head.y === food.y) {
-        // Увеличиваем счет
+        // Увеличение счета
         score++;
         scoreDisplay.textContent = `Счет: ${score}`;
-        // Генерируем новую еду
+        
+        // Увеличение скорости каждые 5 очков
+        if (score % 5 === 0 && gameSpeed > 5) {
+            gameSpeed--;
+        }
+        
+        // Генерация новой еды
         generateFood();
     } else {
-        // Удаляем хвост, если не съели еду
+        // Удаление хвоста, если еда не съедена
         snake.pop();
     }
 }
 
-// Отрисовка игры
 function draw() {
     // Очистка холста
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+    
+    // Отрисовка сетки
+    ctx.strokeStyle = '#16213e';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= GRID_SIZE; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * CELL_SIZE, 0);
+        ctx.lineTo(x * CELL_SIZE, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = 0; y <= GRID_SIZE; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * CELL_SIZE);
+        ctx.lineTo(canvas.width, y * CELL_SIZE);
+        ctx.stroke();
+    }
+    
     // Отрисовка змейки
-    ctx.fillStyle = '#4CAF50';
-    snake.forEach(segment => {
-        ctx.fillRect(
-            segment.x * BLOCK_SIZE,
-            segment.y * BLOCK_SIZE,
-            BLOCK_SIZE,
-            BLOCK_SIZE
-        );
+    snake.forEach((segment, index) => {
+        if (index === 0) {
+            // Голова
+            ctx.fillStyle = '#27ae60';
+            ctx.beginPath();
+            ctx.arc(
+                segment.x * CELL_SIZE + CELL_SIZE / 2,
+                segment.y * CELL_SIZE + CELL_SIZE / 2,
+                CELL_SIZE / 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            
+            // Глаза
+            ctx.fillStyle = '#000';
+            const eyeSize = CELL_SIZE / 8;
+            const offset = CELL_SIZE / 3;
+            
+            // Правый глаз
+            ctx.beginPath();
+            ctx.arc(
+                segment.x * CELL_SIZE + CELL_SIZE / 2 + (direction.x * offset),
+                segment.y * CELL_SIZE + CELL_SIZE / 2 + (direction.y * offset),
+                eyeSize,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+            
+            // Левый глаз
+            ctx.beginPath();
+            ctx.arc(
+                segment.x * CELL_SIZE + CELL_SIZE / 2 + (direction.y * offset),
+                segment.y * CELL_SIZE + CELL_SIZE / 2 - (direction.x * offset),
+                eyeSize,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        } else {
+            // Тело
+            const colorValue = 150 - Math.min(140, index * 2);
+            ctx.fillStyle = `rgb(39, 174, 96, ${0.7 - index * 0.02})`;
+            ctx.fillRect(
+                segment.x * CELL_SIZE,
+                segment.y * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
+            );
+            
+            // Обводка для сегментов
+            ctx.strokeStyle = '#1e8449';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+                segment.x * CELL_SIZE,
+                segment.y * CELL_SIZE,
+                CELL_SIZE,
+                CELL_SIZE
+            );
+        }
     });
-
+    
     // Отрисовка еды
-    ctx.fillStyle = '#FF5252';
-    ctx.fillRect(
-        food.x * BLOCK_SIZE,
-        food.y * BLOCK_SIZE,
-        BLOCK_SIZE,
-        BLOCK_SIZE
-    );
-}
-
-// Игровой цикл
-function gameLoop() {
-    update();
-    draw();
-    if (gameActive) {
-        gameLoopId = setTimeout(gameLoop, 150); // Скорость игры
+    if (food.x >= 0 && food.y >= 0) {
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.arc(
+            food.x * CELL_SIZE + CELL_SIZE / 2,
+            food.y * CELL_SIZE + CELL_SIZE / 2,
+            CELL_SIZE / 2 - 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // Детали для еды
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.moveTo(food.x * CELL_SIZE + CELL_SIZE / 2, food.y * CELL_SIZE + 5);
+        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 - 3, food.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 + 3, food.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.closePath();
+        ctx.fill();
     }
 }
 
-// Завершение игры
-function gameOver() {
+// ============== ИГРОВОЙ ЦИКЛ ==============
+function mainLoop(currentTime) {
+    if (!gameActive) return;
+    
+    // Контроль FPS
+    const secondsSinceLastRender = (currentTime - lastRenderTime) / 1000;
+    if (secondsSinceLastRender < 1 / gameSpeed) {
+        requestAnimationFrame(mainLoop);
+        return;
+    }
+    lastRenderTime = currentTime;
+    
+    // Обновление и отрисовка игры
+    update();
+    draw();
+    
+    // Продолжение цикла
+    requestAnimationFrame(mainLoop);
+}
+
+// ============== УПРАВЛЕНИЕ ==============
+function changeDirection(newDirection) {
+    // Запрет разворота на 180 градусов
+    if (
+        (direction === DIRECTIONS.UP && newDirection === DIRECTIONS.DOWN) ||
+        (direction === DIRECTIONS.DOWN && newDirection === DIRECTIONS.UP) ||
+        (direction === DIRECTIONS.LEFT && newDirection === DIRECTIONS.RIGHT) ||
+        (direction === DIRECTIONS.RIGHT && newDirection === DIRECTIONS.LEFT)
+    ) {
+        return;
+    }
+    nextDirection = newDirection;
+}
+
+// Назначение обработчиков кнопок
+upBtn.addEventListener('click', () => changeDirection(DIRECTIONS.UP));
+downBtn.addEventListener('click', () => changeDirection(DIRECTIONS.DOWN));
+leftBtn.addEventListener('click', () => changeDirection(DIRECTIONS.LEFT));
+rightBtn.addEventListener('click', () => changeDirection(DIRECTIONS.RIGHT));
+
+// Обработка клавиатуры
+document.addEventListener('keydown', (e) => {
+    switch (e.key) {
+        case 'ArrowUp': changeDirection(DIRECTIONS.UP); break;
+        case 'ArrowDown': changeDirection(DIRECTIONS.DOWN); break;
+        case 'ArrowLeft': changeDirection(DIRECTIONS.LEFT); break;
+        case 'ArrowRight': changeDirection(DIRECTIONS.RIGHT); break;
+    }
+});
+
+// ============== ЗАВЕРШЕНИЕ И ПЕРЕЗАПУСК ==============
+function endGame() {
     gameActive = false;
-    clearTimeout(gameLoopId);
     finalScoreDisplay.textContent = score;
     gameOverScreen.style.display = 'block';
 }
 
-// Управление
-upBtn.addEventListener('click', () => {
-    if (direction !== DOWN) nextDirection = UP;
-});
-downBtn.addEventListener('click', () => {
-    if (direction !== UP) nextDirection = DOWN;
-});
-leftBtn.addEventListener('click', () => {
-    if (direction !== RIGHT) nextDirection = LEFT;
-});
-rightBtn.addEventListener('click', () => {
-    if (direction !== LEFT) nextDirection = RIGHT;
-});
-
-// Рестарт
 restartBtn.addEventListener('click', () => {
+    gameSpeed = FPS;
     initGame();
-    gameLoop();
 });
 
-// Запуск игры при загрузке
-window.addEventListener('load', () => {
-    initGame();
-    gameLoop();
-});
-
-// Обработка клавиатуры (на случай, если кто-то захочет с клавиатуры играть)
-document.addEventListener('keydown', (e) => {
-    switch (e.key) {
-        case 'ArrowUp':
-            if (direction !== DOWN) nextDirection = UP;
-            break;
-        case 'ArrowDown':
-            if (direction !== UP) nextDirection = DOWN;
-            break;
-        case 'ArrowLeft':
-            if (direction !== RIGHT) nextDirection = LEFT;
-            break;
-        case 'ArrowRight':
-            if (direction !== LEFT) nextDirection = RIGHT;
-            break;
-    }
-});
+// ============== ЗАПУСК ИГРЫ ==============
+window.addEventListener('load', initGame);
