@@ -1,262 +1,203 @@
-// Telegram WebApp init
-if (window.Telegram?.WebApp) {
-    Telegram.WebApp.ready();
-}
+// Размеры игрового поля (в блоках)
+const GRID_SIZE = 20;
+const BLOCK_SIZE = 20; // Размер одного блока в пикселях
 
+// Направления
+const UP = { x: 0, y: -1 };
+const DOWN = { x: 0, y: 1 };
+const LEFT = { x: -1, y: 0 };
+const RIGHT = { x: 1, y: 0 };
+
+// Элементы
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
-// UI элементы
 const scoreDisplay = document.getElementById('scoreDisplay');
 const gameOverScreen = document.getElementById('gameOver');
 const finalScoreDisplay = document.getElementById('finalScore');
 const restartBtn = document.getElementById('restartBtn');
+const upBtn = document.getElementById('upBtn');
+const downBtn = document.getElementById('downBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
 
-// Константы
-const PLAYER_SIZE = 40;
-const PLATFORM_WIDTH = 70;
-const PLATFORM_HEIGHT = 10;
-const GRAVITY = 0.35;
-const JUMP_STRENGTH = -12.5; // усилен для iPhone 12 Pro
-const PLAYER_SPEED = 6.5;
-
-// Игровые переменные
-const player = {
-    x: 0,
-    y: 0,
-    width: PLAYER_SIZE,
-    height: PLAYER_SIZE,
-    velocityY: 0,
-    velocityX: 0,
-    gravity: GRAVITY,
-    jumpStrength: JUMP_STRENGTH
-};
-
-const platforms = [];
-let maxHeight = 0;
+// Переменные игры
+let snake = [];
+let food = {};
+let direction = RIGHT;
+let nextDirection = RIGHT;
 let score = 0;
-let lastPlatformIndex = -1;
-let gameActive = true;
-let lastTime = 0;
-const FPS = 60;
-const FRAME_INTERVAL = 1000 / FPS;
+let gameActive = false;
+let gameLoopId = null;
 
-// Запрет скроллов на iOS
-document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-
-// Функция ресайза
-function resizeCanvas() {
-    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    canvas.width = window.innerWidth;
-    canvas.height = vh;
-}
-window.addEventListener('resize', resizeCanvas);
-
-// Инициализация
+// Инициализация игры
 function initGame() {
-    resizeCanvas();
+    // Размер canvas
+    canvas.width = GRID_SIZE * BLOCK_SIZE;
+    canvas.height = GRID_SIZE * BLOCK_SIZE;
 
-    player.x = (canvas.width - PLAYER_SIZE) / 2;
-    player.y = canvas.height * 0.7;
-    player.velocityY = 0;
-    player.velocityX = 0;
-    maxHeight = player.y;
+    // Инициализация змейки
+    snake = [
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
+    ];
+
+    // Создаем еду
+    generateFood();
+
+    // Сброс направления
+    direction = RIGHT;
+    nextDirection = RIGHT;
+
+    // Сброс счета
     score = 0;
-    lastPlatformIndex = -1;
-    gameActive = true;
+    scoreDisplay.textContent = `Счет: ${score}`;
 
-    scoreDisplay.textContent = `Score: ${score}`;
+    // Скрыть экран окончания игры
     gameOverScreen.style.display = 'none';
 
-    createPlatforms();
+    // Запуск игры
+    gameActive = true;
 }
 
-// Генерация платформ
-function createPlatforms() {
-    platforms.length = 0;
+// Генерация еды
+function generateFood() {
+    // Генерируем случайные координаты, пока не найдем свободное место
+    let newFood;
+    do {
+        newFood = {
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * GRID_SIZE)
+        };
+    } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
 
-    const startPlatformX = (canvas.width - PLATFORM_WIDTH) / 2;
-    const startPlatformY = player.y + player.height;
-
-    platforms.push({
-        x: startPlatformX,
-        y: startPlatformY,
-        width: PLATFORM_WIDTH,
-        height: PLATFORM_HEIGHT,
-        index: 0
-    });
-
-    let lastY = startPlatformY;
-    const jumpHeight = Math.pow(player.jumpStrength, 2) / (2 * player.gravity);
-
-    const maxStep = Math.min(jumpHeight * 0.8, canvas.height * 0.25);
-    const minStep = canvas.height * 0.12;
-
-    for (let i = 1; i < 12; i++) {
-        let step = minStep + Math.random() * (maxStep - minStep);
-        const newY = lastY - step;
-        const newX = Math.random() * (canvas.width - PLATFORM_WIDTH);
-
-        platforms.push({
-            x: newX,
-            y: newY,
-            width: PLATFORM_WIDTH,
-            height: PLATFORM_HEIGHT,
-            index: i
-        });
-
-        lastY = newY;
-    }
+    food = newFood;
 }
 
-// Отрисовка
-function drawPlayer() {
-    ctx.fillStyle = '#4CAF50';
-    ctx.beginPath();
-    ctx.arc(
-        player.x + player.width / 2,
-        player.y + player.height / 2,
-        player.width / 2,
-        0,
-        Math.PI * 2
-    );
-    ctx.fill();
-}
+// Обновление игры
+function update() {
+    if (!gameActive) return;
 
-function drawPlatforms() {
-    ctx.fillStyle = '#8B4513';
-    for (let p of platforms) {
-        ctx.fillRect(p.x, p.y, p.width, p.height);
-    }
-}
+    // Обновляем направление
+    direction = nextDirection;
 
-function drawBackground() {
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#87CEEB');
-    gradient.addColorStop(1, '#6495ED');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
+    // Перемещаем змейку: добавляем голову в новом направлении
+    const head = { ...snake[0] };
+    head.x += direction.x;
+    head.y += direction.y;
 
-// Логика
-function updatePlayer() {
-    player.velocityY += player.gravity;
-    player.y += player.velocityY;
-    player.x += player.velocityX;
-
-    if (player.y < maxHeight) {
-        maxHeight = player.y;
-    }
-
-    if (player.y > canvas.height) {
+    // Проверка на столкновение с границами
+    if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
         gameOver();
         return;
     }
 
-    if (player.x + player.width < 0) {
-        player.x = canvas.width;
-    } else if (player.x > canvas.width) {
-        player.x = -player.width;
+    // Проверка на столкновение с собой
+    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        gameOver();
+        return;
     }
-}
 
-function checkPlatformCollision() {
-    const playerBottom = player.y + player.height;
-    for (let p of platforms) {
-        if (
-            player.velocityY > 0 &&
-            playerBottom <= p.y + 5 &&
-            playerBottom + player.velocityY >= p.y &&
-            player.x + player.width > p.x &&
-            player.x < p.x + p.width
-        ) {
-            player.y = p.y - player.height;
-            player.velocityY = player.jumpStrength;
-            if (p.index !== lastPlatformIndex) {
-                score++;
-                lastPlatformIndex = p.index;
-                scoreDisplay.textContent = `Score: ${score}`;
-            }
-            break;
-        }
-    }
-}
+    // Добавляем новую голову
+    snake.unshift(head);
 
-function scrollWorld() {
-    if (player.y < canvas.height * 0.3) {
-        const diff = canvas.height * 0.3 - player.y;
-        player.y = canvas.height * 0.3;
-        for (let p of platforms) {
-            p.y += diff;
-        }
-    }
-}
-
-function gameOver() {
-    gameActive = false;
-    finalScoreDisplay.textContent = score;
-    gameOverScreen.style.display = 'flex';
-
-    if (window.Telegram?.WebApp) {
-        Telegram.WebApp.sendData(JSON.stringify({ score }));
-    }
-}
-
-function resetGame() {
-    initGame();
-    gameLoop(0);
-}
-
-// Управление
-const keys = { left: false, right: false };
-document.getElementById('leftBtn').addEventListener('touchstart', e => { e.preventDefault(); keys.left = true; });
-document.getElementById('leftBtn').addEventListener('touchend', e => { e.preventDefault(); keys.left = false; });
-document.getElementById('rightBtn').addEventListener('touchstart', e => { e.preventDefault(); keys.right = true; });
-document.getElementById('rightBtn').addEventListener('touchend', e => { e.preventDefault(); keys.right = false; });
-
-function handleInput() {
-    if (keys.left) {
-        player.velocityX = -PLAYER_SPEED;
-    } else if (keys.right) {
-        player.velocityX = PLAYER_SPEED;
+    // Проверка, съели ли еду
+    if (head.x === food.x && head.y === food.y) {
+        // Увеличиваем счет
+        score++;
+        scoreDisplay.textContent = `Счет: ${score}`;
+        // Генерируем новую еду
+        generateFood();
     } else {
-        player.velocityX = 0;
+        // Удаляем хвост, если не съели еду
+        snake.pop();
     }
+}
+
+// Отрисовка игры
+function draw() {
+    // Очистка холста
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Отрисовка змейки
+    ctx.fillStyle = '#4CAF50';
+    snake.forEach(segment => {
+        ctx.fillRect(
+            segment.x * BLOCK_SIZE,
+            segment.y * BLOCK_SIZE,
+            BLOCK_SIZE,
+            BLOCK_SIZE
+        );
+    });
+
+    // Отрисовка еды
+    ctx.fillStyle = '#FF5252';
+    ctx.fillRect(
+        food.x * BLOCK_SIZE,
+        food.y * BLOCK_SIZE,
+        BLOCK_SIZE,
+        BLOCK_SIZE
+    );
 }
 
 // Игровой цикл
-function gameLoop(timestamp) {
-    if (!gameActive) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-
-    if (!lastTime) lastTime = timestamp;
-    const delta = timestamp - lastTime;
-    if (delta < FRAME_INTERVAL) {
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    lastTime = timestamp - (delta % FRAME_INTERVAL);
-
-    handleInput();
-    updatePlayer();
-
+function gameLoop() {
+    update();
+    draw();
     if (gameActive) {
-        checkPlatformCollision();
-        scrollWorld();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBackground();
-        drawPlatforms();
-        drawPlayer();
+        gameLoopId = setTimeout(gameLoop, 150); // Скорость игры
     }
-
-    requestAnimationFrame(gameLoop);
 }
 
-// Запуск
+// Завершение игры
+function gameOver() {
+    gameActive = false;
+    clearTimeout(gameLoopId);
+    finalScoreDisplay.textContent = score;
+    gameOverScreen.style.display = 'block';
+}
+
+// Управление
+upBtn.addEventListener('click', () => {
+    if (direction !== DOWN) nextDirection = UP;
+});
+downBtn.addEventListener('click', () => {
+    if (direction !== UP) nextDirection = DOWN;
+});
+leftBtn.addEventListener('click', () => {
+    if (direction !== RIGHT) nextDirection = LEFT;
+});
+rightBtn.addEventListener('click', () => {
+    if (direction !== LEFT) nextDirection = RIGHT;
+});
+
+// Рестарт
+restartBtn.addEventListener('click', () => {
+    initGame();
+    gameLoop();
+});
+
+// Запуск игры при загрузке
 window.addEventListener('load', () => {
     initGame();
-    gameLoop(0);
+    gameLoop();
 });
-restartBtn.addEventListener('click', resetGame);
+
+// Обработка клавиатуры (на случай, если кто-то захочет с клавиатуры играть)
+document.addEventListener('keydown', (e) => {
+    switch (e.key) {
+        case 'ArrowUp':
+            if (direction !== DOWN) nextDirection = UP;
+            break;
+        case 'ArrowDown':
+            if (direction !== UP) nextDirection = DOWN;
+            break;
+        case 'ArrowLeft':
+            if (direction !== RIGHT) nextDirection = LEFT;
+            break;
+        case 'ArrowRight':
+            if (direction !== LEFT) nextDirection = RIGHT;
+            break;
+    }
+});
