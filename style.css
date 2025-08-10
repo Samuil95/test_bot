@@ -1,109 +1,77 @@
-* {
+html, body {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    touch-action: manipulation;
-}
-
-body {
-    font-family: Arial, sans-serif;
     overflow: hidden;
-    background-color: #f0f0f0;
-    height: 100vh;
-    width: 100vw;
-}
-
-.container {
-    position: relative;
-    width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-#scoreDisplay {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    font-size: 24px;
-    font-weight: bold;
-    color: #333;
-    z-index: 10;
-    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
+    height: 100%;
+    background: #000;
 }
 
 #gameCanvas {
     display: block;
-    width: 100%;
-    height: 100%;
-    background-color: #87CEEB;
+    touch-action: none; /* отключает жесты свайпа/зума */
+}
+
+#scoreDisplay {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 20px;
+    font-family: sans-serif;
+    z-index: 10;
 }
 
 #controls {
-    position: absolute;
-    bottom: 30px;
+    position: fixed;
+    bottom: 20px;
     width: 100%;
     display: flex;
-    justify-content: space-around;
-    padding: 0 20%;
+    justify-content: space-between;
+    padding: 0 30px;
     z-index: 10;
 }
 
 #controls button {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background-color: rgba(139, 69, 19, 0.7);
-    border: 3px solid #5D2906;
+    font-size: 2rem;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.3);
     color: white;
-    font-size: 32px;
-    font-weight: bold;
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s;
-}
-
-#controls button:active {
-    background-color: rgba(160, 82, 45, 0.9);
+    -webkit-tap-highlight-color: transparent; /* убирает подсветку при тапе */
 }
 
 #gameOver {
-    position: absolute;
-    top: 0;
+    position: fixed;
+    top: 0; 
     left: 0;
-    width: 100%;
+    width: 100%; 
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 20;
+    background: rgba(0,0,0,0.8);
     color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: sans-serif;
+    z-index: 20;
 }
 
 #gameOver h2 {
-    font-size: 48px;
-    margin-bottom: 20px;
-    color: #ff5252;
-}
-
-#gameOver p {
-    font-size: 36px;
-    margin-bottom: 40px;
+    font-size: 2rem;
+    margin-bottom: 10px;
 }
 
 #restartBtn {
-    padding: 15px 40px;
-    font-size: 24px;
-    background-color: #4CAF50;
-    color: white;
+    padding: 10px 20px;
+    font-size: 1.2rem;
     border: none;
-    border-radius: 50px;
+    background: #4CAF50;
+    color: white;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s;
 }
 
 #restartBtn:hover {
-    background-color: #45a049;
+    background: #45a049;
 }
