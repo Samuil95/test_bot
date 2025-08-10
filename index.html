@@ -8,13 +8,20 @@
 </head>
 <body>
     <div class="container">
-        <div id="scoreDisplay">Счет: 0</div>
-        <canvas id="gameCanvas"></canvas>
-        <div id="gameOver">
-            <h2>Игра окончена!</h2>
-            <p>Ваш счет: <span id="finalScore">0</span></p>
-            <button id="restartBtn">Играть снова</button>
+        <div class="header">
+            <h1 class="title">🐍 ЗМЕЙКА</h1>
+            <div id="scoreDisplay">Счет: 0</div>
         </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="gameOver">
+            <h2>ИГРА ОКОНЧЕНА!</h2>
+            <p>Ваш счет:</p>
+            <span id="finalScore">0</span>
+            <button id="restartBtn">ИГРАТЬ СНОВА</button>
+        </div>
+        
         <div class="controls">
             <div class="row">
                 <button id="upBtn">↑</button>
@@ -24,6 +31,10 @@
                 <button id="downBtn">↓</button>
                 <button id="rightBtn">→</button>
             </div>
+        </div>
+        
+        <div class="instructions">
+            Соберите как можно больше яблок! Избегайте стен и своего хвоста.
         </div>
     </div>
     <script src="script.js"></script>
