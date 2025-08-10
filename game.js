@@ -14,7 +14,7 @@ const PLATFORM_WIDTH = 70;
 const PLATFORM_HEIGHT = 10;
 const GRAVITY = 0.35;
 const JUMP_STRENGTH = -10.5;
-const PLAYER_SPEED = 8.0; // Увеличена скорость для мобильных
+const PLAYER_SPEED = 6.5;
 
 // Игровые переменные
 const player = {
@@ -78,12 +78,13 @@ function createPlatforms() {
     let lastY = player.y + player.height;
     const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
     
-    // Ограничения для мобильных устройств
-    const maxStep = canvas.height * 0.25;
-    const minStep = canvas.height * 0.15;
+    // Исправление: адаптивное расстояние с учетом высоты экрана
+    const maxStep = canvas.height * 0.25; // Максимум 25% высоты экрана
+    const minStep = canvas.height * 0.15; // Минимум 15% высоты экрана
     
     // Создание остальных платформ
     for (let i = 1; i < 12; i++) {
+        // Ограничиваем шаг платформы
         let step = jumpHeight * (0.5 + Math.random() * 0.3);
         step = Math.min(step, maxStep);
         step = Math.max(step, minStep);
@@ -235,30 +236,6 @@ document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
 
 document.getElementById('rightBtn').addEventListener('touchend', (e) => {
     e.preventDefault();
-    keys.right = false;
-});
-
-// Обработка свайпов
-let touchStartX = 0;
-
-canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    touchStartX = e.touches[0].clientX;
-});
-
-canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    const touchX = e.touches[0].clientX;
-    const diff = touchX - touchStartX;
-    
-    if (Math.abs(diff) > 10) {
-        keys.left = diff < 0;
-        keys.right = diff > 0;
-    }
-});
-
-canvas.addEventListener('touchend', () => {
-    keys.left = false;
     keys.right = false;
 });
 
