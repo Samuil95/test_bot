@@ -1,7 +1,9 @@
-// ============== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ==============
+// ============== КОНСТАНТЫ ==============
 const GRID_SIZE = 20;
 const CELL_SIZE = 20;
-const FPS = 10;
+const INITIAL_SPEED = 10;
+const SPEED_INCREASE = 0.5;
+const MAX_SPEED = 20;
 
 // Направления
 const DIRECTIONS = {
@@ -11,7 +13,7 @@ const DIRECTIONS = {
     RIGHT: { x: 1, y: 0 }
 };
 
-// Элементы DOM
+// ============== ЭЛЕМЕНТЫ ДОМ ==============
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('scoreDisplay');
@@ -23,7 +25,7 @@ const downBtn = document.getElementById('downBtn');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 
-// Игровые переменные
+// ============== ИГРОВЫЕ ПЕРЕМЕННЫЕ ==============
 let snake = [];
 let food = {};
 let direction = DIRECTIONS.RIGHT;
@@ -31,9 +33,10 @@ let nextDirection = DIRECTIONS.RIGHT;
 let score = 0;
 let gameActive = false;
 let lastRenderTime = 0;
-let gameSpeed = FPS;
+let gameSpeed = INITIAL_SPEED;
+let gameLoopId = null;
 
-// ============== ФУНКЦИИ ИНИЦИАЛИЗАЦИИ ==============
+// ============== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==============
 function initGame() {
     // Установка размеров canvas
     canvas.width = GRID_SIZE * CELL_SIZE;
@@ -51,20 +54,19 @@ function initGame() {
     // Генерация еды
     generateFood();
     
-    // Сброс направления и счета
+    // Сброс состояния игры
     direction = DIRECTIONS.RIGHT;
     nextDirection = DIRECTIONS.RIGHT;
     score = 0;
+    gameSpeed = INITIAL_SPEED;
     scoreDisplay.textContent = `Счет: ${score}`;
-    
-    // Скрыть экран завершения игры
     gameOverScreen.style.display = 'none';
-    
-    // Активация игры
     gameActive = true;
     
     // Запуск игрового цикла
-    requestAnimationFrame(mainLoop);
+    if (gameLoopId) cancelAnimationFrame(gameLoopId);
+    lastRenderTime = 0;
+    gameLoopId = requestAnimationFrame(mainLoop);
 }
 
 function generateFood() {
@@ -81,17 +83,17 @@ function generateFood() {
         }
     }
     
-    // Если есть свободные позиции - выбираем случайную
+    // Выбираем случайную свободную позицию
     if (freePositions.length > 0) {
         const randomIndex = Math.floor(Math.random() * freePositions.length);
         food = freePositions[randomIndex];
     } else {
-        // Если свободных позиций нет (змея заполнила всё поле)
-        food = {x: -1, y: -1}; // Невидимая еда
+        // Если свободных позиций нет
+        food = {x: -1, y: -1};
     }
 }
 
-// ============== ОСНОВНЫЕ ФУНКЦИИ ИГРЫ ==============
+// ============== ОСНОВНАЯ ЛОГИКА ИГРЫ ==============
 function update() {
     if (!gameActive) return;
     
@@ -101,21 +103,19 @@ function update() {
     // Перемещение головы змейки
     const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
     
-    // Проверка столкновения со стенами
+    // Проверка на столкновение со стенами
     if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
         endGame();
         return;
     }
     
-    // Проверка столкновения с собой
-    for (let i = 0; i < snake.length; i++) {
-        if (snake[i].x === head.x && snake[i].y === head.y) {
-            endGame();
-            return;
-        }
+    // Проверка на столкновение с собой
+    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        endGame();
+        return;
     }
     
-    // Добавление новой головы
+    // Добавляем новую голову
     snake.unshift(head);
     
     // Проверка съедания еды
@@ -124,9 +124,9 @@ function update() {
         score++;
         scoreDisplay.textContent = `Счет: ${score}`;
         
-        // Увеличение скорости каждые 5 очков
-        if (score % 5 === 0 && gameSpeed > 5) {
-            gameSpeed--;
+        // Увеличение скорости
+        if (gameSpeed < MAX_SPEED) {
+            gameSpeed += SPEED_INCREASE;
         }
         
         // Генерация новой еды
@@ -201,8 +201,8 @@ function draw() {
             ctx.fill();
         } else {
             // Тело
-            const colorValue = 150 - Math.min(140, index * 2);
-            ctx.fillStyle = `rgb(39, 174, 96, ${0.7 - index * 0.02})`;
+            const opacity = 0.7 - index * 0.02;
+            ctx.fillStyle = `rgba(39, 174, 96, ${opacity})`;
             ctx.fillRect(
                 segment.x * CELL_SIZE,
                 segment.y * CELL_SIZE,
@@ -224,6 +224,7 @@ function draw() {
     
     // Отрисовка еды
     if (food.x >= 0 && food.y >= 0) {
+        // Яблоко
         ctx.fillStyle = '#e74c3c';
         ctx.beginPath();
         ctx.arc(
@@ -235,12 +236,12 @@ function draw() {
         );
         ctx.fill();
         
-        // Детали для еды
-        ctx.fillStyle = '#c0392b';
+        // Листик
+        ctx.fillStyle = '#27ae60';
         ctx.beginPath();
         ctx.moveTo(food.x * CELL_SIZE + CELL_SIZE / 2, food.y * CELL_SIZE + 5);
-        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 - 3, food.y * CELL_SIZE + CELL_SIZE / 2);
-        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 + 3, food.y * CELL_SIZE + CELL_SIZE / 2);
+        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 - 5, food.y * CELL_SIZE - 3);
+        ctx.lineTo(food.x * CELL_SIZE + CELL_SIZE / 2 + 2, food.y * CELL_SIZE - 1);
         ctx.closePath();
         ctx.fill();
     }
@@ -250,12 +251,15 @@ function draw() {
 function mainLoop(currentTime) {
     if (!gameActive) return;
     
-    // Контроль FPS
-    const secondsSinceLastRender = (currentTime - lastRenderTime) / 1000;
-    if (secondsSinceLastRender < 1 / gameSpeed) {
-        requestAnimationFrame(mainLoop);
+    // Контроль скорости обновления
+    if (lastRenderTime === 0) lastRenderTime = currentTime;
+    const deltaTime = currentTime - lastRenderTime;
+    
+    if (deltaTime < 1000 / gameSpeed) {
+        gameLoopId = requestAnimationFrame(mainLoop);
         return;
     }
+    
     lastRenderTime = currentTime;
     
     // Обновление и отрисовка игры
@@ -263,7 +267,7 @@ function mainLoop(currentTime) {
     draw();
     
     // Продолжение цикла
-    requestAnimationFrame(mainLoop);
+    gameLoopId = requestAnimationFrame(mainLoop);
 }
 
 // ============== УПРАВЛЕНИЕ ==============
@@ -303,10 +307,12 @@ function endGame() {
     gameOverScreen.style.display = 'block';
 }
 
-restartBtn.addEventListener('click', () => {
-    gameSpeed = FPS;
-    initGame();
-});
+restartBtn.addEventListener('click', initGame);
 
 // ============== ЗАПУСК ИГРЫ ==============
 window.addEventListener('load', initGame);
+window.addEventListener('resize', () => {
+    canvas.width = GRID_SIZE * CELL_SIZE;
+    canvas.height = GRID_SIZE * CELL_SIZE;
+    if (gameActive) draw();
+});
