@@ -14,7 +14,7 @@ const PLATFORM_WIDTH = 70;
 const PLATFORM_HEIGHT = 10;
 const GRAVITY = 0.35;
 const JUMP_STRENGTH = -10.5;
-const PLAYER_SPEED = 6.5;
+const PLAYER_SPEED = 8.0; // Увеличена скорость для мобильных
 
 // Игровые переменные
 const player = {
@@ -78,9 +78,17 @@ function createPlatforms() {
     let lastY = player.y + player.height;
     const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
     
+    // Ограничения для мобильных устройств
+    const maxStep = canvas.height * 0.25;
+    const minStep = canvas.height * 0.15;
+    
     // Создание остальных платформ
     for (let i = 1; i < 12; i++) {
-        const newY = lastY - (jumpHeight * 0.75 + Math.random() * jumpHeight * 0.25);
+        let step = jumpHeight * (0.5 + Math.random() * 0.3);
+        step = Math.min(step, maxStep);
+        step = Math.max(step, minStep);
+        
+        const newY = lastY - step;
         const newX = Math.random() * (canvas.width - PLATFORM_WIDTH);
         
         platforms.push({
@@ -230,6 +238,30 @@ document.getElementById('rightBtn').addEventListener('touchend', (e) => {
     keys.right = false;
 });
 
+// Обработка свайпов
+let touchStartX = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchStartX = e.touches[0].clientX;
+});
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touchX = e.touches[0].clientX;
+    const diff = touchX - touchStartX;
+    
+    if (Math.abs(diff) > 10) {
+        keys.left = diff < 0;
+        keys.right = diff > 0;
+    }
+});
+
+canvas.addEventListener('touchend', () => {
+    keys.left = false;
+    keys.right = false;
+});
+
 // Обработка ввода
 function handleInput() {
     if (keys.left) {
@@ -282,6 +314,12 @@ function gameLoop(timestamp) {
 window.addEventListener('load', () => {
     initGame();
     gameLoop(0);
+});
+
+// Ресайз окна
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 });
 
 // Настройка кнопки рестарта
