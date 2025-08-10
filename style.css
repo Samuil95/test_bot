@@ -3,70 +3,68 @@
     padding: 0;
     box-sizing: border-box;
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    user-select: none;
 }
 
 body {
+    font-family: Arial, sans-serif;
     overflow: hidden;
-    background: #6495ED;
+    background-color: #f0f0f0;
     height: 100vh;
     width: 100vw;
-    position: fixed;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-#gameContainer {
+.container {
     position: relative;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#scoreDisplay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    z-index: 10;
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7);
 }
 
 #gameCanvas {
     display: block;
     width: 100%;
     height: 100%;
+    background-color: #87CEEB;
 }
 
 #controls {
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
     width: 100%;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-around;
     padding: 0 20%;
-    opacity: 0.8;
-    z-index: 20;
+    z-index: 10;
 }
 
-.control-btn {
+#controls button {
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background: rgba(50, 50, 50, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
+    background-color: rgba(139, 69, 19, 0.7);
+    border: 3px solid #5D2906;
     color: white;
-    border: 3px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
 }
 
-#scoreDisplay {
-    position: absolute;
-    top: 25px;
-    left: 25px;
-    font-size: 28px;
-    font-weight: bold;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-    z-index: 10;
-    padding: 10px 20px;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 25px;
+#controls button:active {
+    background-color: rgba(160, 82, 45, 0.9);
 }
 
 #gameOver {
@@ -75,39 +73,37 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background-color: rgba(0, 0, 0, 0.8);
     display: none;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 100;
+    z-index: 20;
     color: white;
-}
-
-#gameOver h1 {
-    font-size: 52px;
-    margin-bottom: 30px;
 }
 
 #gameOver h2 {
-    font-size: 42px;
-    margin-bottom: 50px;
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #ff5252;
 }
 
-#finalScore {
-    color: #FFD700;
-    font-weight: bold;
+#gameOver p {
+    font-size: 36px;
+    margin-bottom: 40px;
 }
 
 #restartBtn {
-    margin-top: 30px;
-    padding: 18px 60px;
-    background: linear-gradient(to bottom, #4CAF50, #2E8B57);
-    border: none;
-    border-radius: 60px;
+    padding: 15px 40px;
+    font-size: 24px;
+    background-color: #4CAF50;
     color: white;
-    font-size: 28px;
-    font-weight: bold;
+    border: none;
+    border-radius: 50px;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    transition: background-color 0.3s;
+}
+
+#restartBtn:hover {
+    background-color: #45a049;
 }
