@@ -8,7 +8,7 @@ html, body {
 
 #gameCanvas {
     display: block;
-    touch-action: none; /* отключает жесты свайпа/зума */
+    touch-action: none;
 }
 
 #scoreDisplay {
