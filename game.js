@@ -13,12 +13,12 @@ const gameOverScreen = document.getElementById('gameOver');
 const finalScoreDisplay = document.getElementById('finalScore');
 const restartBtn = document.getElementById('restartBtn');
 
-// Игровые константы
+// Игровые константы (увеличен прыжок для iPhone 12 Pro)
 const PLAYER_SIZE = 40;
 const PLATFORM_WIDTH = 70;
 const PLATFORM_HEIGHT = 10;
 const GRAVITY = 0.35;
-const JUMP_STRENGTH = -10.5;
+const JUMP_STRENGTH = -12.5; // было -10.5
 const PLAYER_SPEED = 6.5;
 
 // Игровые переменные
@@ -45,10 +45,11 @@ const FRAME_INTERVAL = 1000 / FPS;
 // Запрет прокрутки на iOS
 document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-// Функция ресайза
+// Функция ресайза с visualViewport (фикс Safari на iPhone)
 function resizeCanvas() {
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.height = vh;
 }
 window.addEventListener('resize', resizeCanvas);
 
@@ -74,6 +75,7 @@ function initGame() {
 function createPlatforms() {
     platforms.length = 0;
 
+    // Стартовая платформа
     platforms.push({
         x: player.x,
         y: player.y + player.height,
@@ -83,16 +85,15 @@ function createPlatforms() {
     });
 
     let lastY = player.y + player.height;
+
     const jumpHeight = Math.abs(JUMP_STRENGTH * (JUMP_STRENGTH / GRAVITY));
 
-    const maxStep = canvas.height * 0.25;
+    // Ограничения высоты платформ
+    const maxStep = Math.min(jumpHeight * 0.9, canvas.height * 0.28); 
     const minStep = canvas.height * 0.15;
 
     for (let i = 1; i < 12; i++) {
-        let step = jumpHeight * (0.5 + Math.random() * 0.3);
-        step = Math.min(step, maxStep);
-        step = Math.max(step, minStep);
-
+        let step = minStep + Math.random() * (maxStep - minStep);
         const newY = lastY - step;
         const newX = Math.random() * (canvas.width - PLATFORM_WIDTH);
 
